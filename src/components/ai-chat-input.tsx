@@ -57,6 +57,11 @@ export default function AI_Prompt() {
     const [selectedModel, setSelectedModel] = useState("GPT-4-1 Mini");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [videoUrl, setVideoUrl] = useState("");
+    const [code, setCode] = useState("");
+    const [query, setQuery] = useState("");
     
     const AI_MODELS = [
         "o3-mini",
@@ -135,17 +140,67 @@ export default function AI_Prompt() {
         }
     };
 
-    const handleSubmitPrompt = () => {
+    const cleaner = (code: string) => {
+        return code.replace(/```python/g, "").replace(/```/g, "");
+      };
+
+    const handleSubmitPrompt = async () => {
+
         if (!value.trim()) return;
         
         setIsLoading(true);
         // Generate a unique chat ID
         const chatId = uuidv4();
         
+        setLoading(true);
+        setError("");
+        setVideoUrl("");
+        setCode("");
+        try {
+            // 1. Generate code from query
+            const codeRes = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        prompt: query,
+                        model: selectedModel,
+                     }),
+            }
+        );
+        const codeData = await codeRes.json();
+        const cleanedCode = cleaner(codeData.code);
+        setCode(cleanedCode);
+        
+        // 2. Generate video from cleaned code
+        const videoRes = await fetch(
+            `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    code: cleanedCode,
+                    file_name: "GenScene.py",
+                    file_class: "GenScene",
+                    iteration: Math.floor(Math.random() * 1000000),
+                    project_name: "GenScene",
+                }),
+            }
+        );
+          const videoData = await videoRes.json();
+          setVideoUrl(videoData.video_url);
+        } catch (err) {
+          setError("Failed to generate video. Please try again.");
+        } finally {
+            setLoading(false);
+        }
         // Redirect to the chat page with the prompt as a query parameter
-        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${encodeURIComponent(selectedModel)}`);
+        router.push(`/chat/${chatId}`);
     };
-
+    
+    
+    
     return (
         <div className="w-full max-w-2xl mx-auto py-4">
             <div className="bg-black/5 dark:bg-white/5 rounded-2xl">
