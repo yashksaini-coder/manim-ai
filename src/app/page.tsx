@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { BACKEND_URL } from "../../config";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -21,33 +22,27 @@ export default function Home() {
     setCode("");
     try {
       // 1. Generate code from query
-      const codeRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: query }),
-        }
-      );
+      const codeRes = await fetch(`${BACKEND_URL}/v1/generate/code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: query }),
+      });
       const codeData = await codeRes.json();
       const cleanedCode = cleaner(codeData.code);
       setCode(cleanedCode);
 
       // 2. Generate video from cleaned code
-      const videoRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: cleanedCode,
-            file_name: "GenScene.py",
-            file_class: "GenScene",
-            iteration: Math.floor(Math.random() * 1000000),
-            project_name: "GenScene",
-          }),
-        }
-      );
+      const videoRes = await fetch(`${BACKEND_URL}/v1/render/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanedCode,
+          file_name: "GenScene.py",
+          file_class: "GenScene",
+          iteration: Math.floor(Math.random() * 1000000),
+          project_name: "GenScene",
+        }),
+      });
       const videoData = await videoRes.json();
       setVideoUrl(videoData.video_url);
     } catch (err) {
@@ -59,13 +54,16 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 text-slate-200">
-      <form onSubmit={handleSubmit} className="w-full max-w-md flex flex-col gap-4 items-center">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md flex flex-col gap-4 items-center"
+      >
         <input
           type="text"
           className="w-full px-4 py-2 rounded bg-gray-800 text-slate-200 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           placeholder="Enter your query..."
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
         />
         <button
           type="submit"
@@ -96,4 +94,3 @@ export default function Home() {
     </div>
   );
 }
-
