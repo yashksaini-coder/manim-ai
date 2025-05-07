@@ -1,9 +1,0 @@
-groq
-Flask
-flask_cors
-openai
-boto3
-dotenv
-requests
-pillow
-manim

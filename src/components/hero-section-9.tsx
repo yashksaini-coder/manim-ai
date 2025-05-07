@@ -7,6 +7,7 @@ import { DotPattern } from "@/components/ui/dot-pattern-1"
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
+import AIChatInput from "@/components/ai-chat-input";
 
 export const HeroSection = () => {
     const { user } = useUser();
@@ -36,7 +37,6 @@ export const HeroSection = () => {
                 <section className="overflow-hidden bg-white dark:bg-transparent">
                     <div className="relative mx-auto max-w-5xl px-6 py-28 lg:py-24">
                         <div className="relative z-10 mx-auto max-w-2xl text-center">
-                            <h1 className="text-balance text-4xl font-semibold md:text-5xl lg:text-6xl">Manim Animation redefined</h1>
                             <p className="mx-auto my-8 max-w-2xl text-xl">
                                 Create stunning animations with{' '}
                                 <HoverPeek url="https://www.manim.community/">
@@ -54,9 +54,17 @@ export const HeroSection = () => {
 
                             <Button
                                 size="lg"
-                                onClick={handleClick}>
+                                onClick={handleClick}
+                                className="mb-10 mt-2"
+                            >
                                 <span className="btn-label">Start Animating</span>
                             </Button>
+                        </div>
+                        {/* Centered AIChatInput below hero */}
+                        <div className="flex justify-center">
+                            <div className="w-full items-center justify-center flex flex-col max-w-7xl">
+                                <AIChatInput />
+                            </div>
                         </div>
                     </div>
                     <div className="mx-auto mb-10 max-w-7xl px-6 md:mb-20 xl:px-0">
