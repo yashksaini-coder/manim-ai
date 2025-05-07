@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtectedRoute = createRouteMatcher(["/profile", "/generate"]);
+const isProtectedRoute = createRouteMatcher(["/profile", "/generate", "/chat/:id"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) await auth.protect();
@@ -14,3 +14,5 @@ export const config = {
     "/(api|trpc)(.*)",
   ],
 };
+
+// Clerk will handle redirect after sign-in/sign-up using query params like ?redirect_url=/chat/[id]

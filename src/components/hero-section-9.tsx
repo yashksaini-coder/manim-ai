@@ -4,7 +4,23 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { HoverPeek } from "./ui/link-preview"
 import { DotPattern } from "@/components/ui/dot-pattern-1"
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { v4 as uuid } from 'uuid';
+
 export const HeroSection = () => {
+    const { user } = useUser();
+    const router = useRouter();
+
+    const handleClick = () => {
+        if (!user) {
+            router.push('/sign-in?redirect_url=/generate');
+        } else {
+            // Generate a unique chat session id using uuid
+            const chatId = uuid();
+            router.push(`/generate/`);
+        }
+    };
 
     return (
         <div>
@@ -37,11 +53,9 @@ export const HeroSection = () => {
                             </p>
 
                             <Button
-                                asChild
-                                size="lg">
-                                <Link href="/generate">
-                                    <span className="btn-label">Start Animating</span>
-                                </Link>
+                                size="lg"
+                                onClick={handleClick}>
+                                <span className="btn-label">Start Animating</span>
                             </Button>
                         </div>
                     </div>
