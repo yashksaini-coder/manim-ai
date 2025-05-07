@@ -13,6 +13,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
 
 const OPENAI_SVG = (
     <div>
@@ -54,6 +56,7 @@ export default function AI_Prompt() {
     });
     const [selectedModel, setSelectedModel] = useState("GPT-4-1 Mini");
     const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
     
     const AI_MODELS = [
         "o3-mini",
@@ -128,14 +131,24 @@ export default function AI_Prompt() {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            setValue("");
-            adjustHeight(true);
+            handleSubmitPrompt();
         }
     };
 
+    const handleSubmitPrompt = () => {
+        if (!value.trim()) return;
+        
+        setIsLoading(true);
+        // Generate a unique chat ID
+        const chatId = uuidv4();
+        
+        // Redirect to the chat page with the prompt as a query parameter
+        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${encodeURIComponent(selectedModel)}`);
+    };
+
     return (
-        <div className="w-4/6 py-4">
-            <div className="bg-black/5 dark:bg-white/5 rounded-2xl max-w-2xl">
+        <div className="w-full max-w-2xl mx-auto py-4">
+            <div className="bg-black/5 dark:bg-white/5 rounded-2xl">
                 <div className="relative">
                     <div className="relative flex flex-col">
                         <div
@@ -217,8 +230,7 @@ export default function AI_Prompt() {
                                                     <div className="flex items-center gap-2">
                                                         {MODEL_ICONS[model] || (
                                                             <Bot className="w-4 h-4 opacity-50" />
-                                                        )}{" "}
-                                                        {/* Use mapped SVG or fallback */}
+                                                        )}
                                                         <span>{model}</span>
                                                     </div>
                                                     {selectedModel ===
@@ -249,12 +261,13 @@ export default function AI_Prompt() {
                                         "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
                                     )}
                                     aria-label="Send message"
-                                    disabled={!value.trim()}
+                                    disabled={!value.trim() || isLoading}
+                                    onClick={handleSubmitPrompt}
                                 >
                                     <ArrowRight
                                         className={cn(
                                             "w-4 h-4 dark:text-white transition-opacity duration-200",
-                                            value.trim()
+                                            value.trim() && !isLoading
                                                 ? "opacity-100"
                                                 : "opacity-30"
                                         )}
