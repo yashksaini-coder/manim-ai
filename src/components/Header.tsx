@@ -1,5 +1,4 @@
 "use client";
-
 import { SignInButton, useUser } from "@clerk/nextjs";
 
 import { SignUpButton } from "@clerk/nextjs";
@@ -10,7 +9,6 @@ import { ThemeToggle } from "./theme-toggle";
 import { UserButton } from "@clerk/nextjs";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Menu, Video } from "lucide-react";
-import Image from "next/image";
 
 export const Header = () => {
     const [menuState, setMenuState] = React.useState(false)
