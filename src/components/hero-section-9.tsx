@@ -51,14 +51,6 @@ export const HeroSection = () => {
                                 </HoverPeek>{' '}
                                 the powerful open-source animation engine.
                             </p>
-
-                            <Button
-                                size="lg"
-                                onClick={handleClick}
-                                className="mb-10 mt-2"
-                            >
-                                <span className="btn-label">Start Animating</span>
-                            </Button>
                         </div>
                         {/* Centered AIChatInput below hero */}
                         <div className="flex justify-center">

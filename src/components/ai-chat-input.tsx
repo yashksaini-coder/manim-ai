@@ -53,7 +53,8 @@ export default function AI_Prompt() {
         maxHeight: 300,
     });
     const [selectedModel, setSelectedModel] = useState("GPT-4-1 Mini");
-
+    const [isLoading, setIsLoading] = useState(false);
+    
     const AI_MODELS = [
         "o3-mini",
         "Gemini 2.5 Flash",

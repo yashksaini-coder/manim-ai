@@ -35,8 +35,12 @@ export default function RootLayout({
       >
         <ClerkProvider>
           <ConvexClientProvider>
-            <Header />
-            {children}
+          <div className="fixed top-0 left-0 right-0 z-50">
+              <Header />
+            </div>
+            <main className="flex-1 bg-background min-h-screen">
+              {children}
+            </main>
           </ConvexClientProvider>
         </ClerkProvider>
       </body>
