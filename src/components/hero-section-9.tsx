@@ -4,12 +4,10 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { HoverPeek } from "./ui/link-preview"
 import { DotPattern } from "@/components/ui/dot-pattern-1"
-import { Header } from "./Header"
 export const HeroSection = () => {
 
     return (
         <div>
-            <Header />
             <main>
                 <div
                     aria-hidden

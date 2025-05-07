@@ -1,8 +1,10 @@
+"use client";
+
 import { SignInButton, useUser } from "@clerk/nextjs";
 
 import { SignUpButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
-import { Link } from "lucide-react";
+import Link from "next/link";
 import React from "react";
 import { ThemeToggle } from "./theme-toggle";
 import { UserButton } from "@clerk/nextjs";
@@ -123,3 +125,5 @@ export const Header = () => {
         </header>
     )
 }
+
+export default Header;
