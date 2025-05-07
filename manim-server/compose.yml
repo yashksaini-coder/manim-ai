@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+    ports:
+      - '5000:5000' # Map container port 5000 to host port 5000
+    environment:
+      - PORT=5000
+    command: ["uv", "run", "app.py"] # Ensure the correct command is used to start the app
+    stop_signal: SIGINT # Flask requires SIGINT to stop gracefully

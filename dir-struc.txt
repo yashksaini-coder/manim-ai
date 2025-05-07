@@ -1,0 +1,85 @@
+.
+├── .git/
+├── .next/
+├── convex/
+│   ├── _generated/
+│   ├── auth.config.ts
+│   ├── http.ts
+│   ├── README.md
+│   ├── schema.ts
+│   ├── tsconfig.json
+│   ├── users.ts
+│   └── videos.ts
+├── manim-server/
+│   ├── .dockerignore
+│   ├── .gitignore
+│   ├── .python-version
+│   ├── app.py
+│   ├── compose.yml
+│   ├── Dockerfile
+│   ├── public/
+│   │   └── manimDocs.py
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── routes/
+│   │   ├── code_generation.py
+│   │   └── video_rendering.py
+│   ├── templates/
+│   │   └── index.html
+│   └── uv.lock
+├── node_modules/
+├── package.json
+├── pnpm-lock.yaml
+├── components.json
+├── next-env.d.ts
+├── tsconfig.json
+├── public/
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── postcss.config.mjs
+├── eslint.config.mjs
+├── next.config.ts
+├── README.md
+└── src/
+    ├── app/
+    │   ├── (auth)/
+    │   │   ├── sign-in/
+    │   │   │   └── [[...signin]]/
+    │   │   │       └── page.tsx
+    │   │   └── sign-up/
+    │   │       └── [[...signup]]/
+    │   │           └── page.tsx
+    │   ├── chat/
+    │   │   └── [id]/
+    │   │       └── page.tsx
+    │   ├── generate/
+    │   │   └── page.tsx
+    │   ├── globals.css
+    │   ├── layout.tsx
+    │   ├── not-found.tsx
+    │   ├── favicon.ico
+    │   └── page.tsx
+    ├── components/
+    │   ├── Header.tsx
+    │   ├── hero-section-9.tsx
+    │   ├── prompttovideo.tsx
+    │   ├── theme-toggle.tsx
+    │   └── ui/
+    │       ├── ai-chat-input.tsx
+    │       ├── animated-ai-chat.tsx
+    │       ├── button.tsx
+    │       ├── dot-pattern-1.tsx
+    │       ├── input.tsx
+    │       ├── link-preview.tsx
+    │       ├── sheet.tsx
+    │       ├── sonner.tsx
+    │       ├── textarea.tsx
+    │       ├── theme-switch-button.tsx
+    │       └── ...
+    ├── lib/
+    │   └── utils.ts
+    ├── middleware.ts
+    └── providers/

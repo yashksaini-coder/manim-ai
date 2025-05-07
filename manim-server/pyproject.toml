@@ -1,0 +1,16 @@
+[project]
+name = "manim-server-api"
+version = "0.1.0"
+description = "Manim Server API for Manim Code Generation and Video Rendering"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask",
+    "flask-cors",
+    "openai",
+    "groq",
+    "boto3",
+    "dotenv",
+    "requests",
+    "pillow>=11.2.1",
+]
