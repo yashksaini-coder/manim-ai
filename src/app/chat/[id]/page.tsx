@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
@@ -9,7 +9,7 @@ import { Code, Play, RefreshCw, ArrowDown } from 'lucide-react';
 import AI_Prompt from '@/components/ai-chat-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { useParams } from 'next/navigation';
 // Types for our messages
 interface Message {
   id: string;
@@ -38,8 +38,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialPrompt = searchParams.get('prompt');
-  const model = searchParams.get('model');
-  
+  const chatId = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
   const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
@@ -47,7 +46,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
+  // const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
   
@@ -56,8 +55,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   // Reference to timeout for cleanup
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Mock API call - replace with your actual API
-  const processUserMessage = async (prompt: string) => {
+  // Process a user message - memoize with useCallback
+  const processUserMessage = useCallback(async (prompt: string) => {
     setProcessingStage(ProcessingStage.GeneratingCode);
     setAIResponse({
       status: "generating"
@@ -106,7 +105,7 @@ I'm now rendering this animation for you...`,
         code: generatedCode,
         status: "rendering"
       });
-      
+        
       // Step 2: Start rendering animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
       
@@ -132,7 +131,7 @@ I'm now rendering this animation for you...`,
       });
       setProcessingStage(ProcessingStage.Error);
     }
-  };
+  }, []);
   
   // Handle initial prompt from URL or localStorage
   useEffect(() => {
@@ -144,7 +143,8 @@ I'm now rendering this animation for you...`,
       
       // If not found in URL, try localStorage
       if (!promptToUse) {
-        const storedPrompt = localStorage.getItem(`chat_${params.id}_prompt`);
+        // localStorage.getItem is not a Promise, so no need for await
+        const storedPrompt = localStorage.getItem(`chat_${chatId}_prompt`);
         if (storedPrompt) {
           promptToUse = storedPrompt;
         }
@@ -176,39 +176,48 @@ I'm now rendering this animation for you...`,
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [initialPrompt, params.id]);
+  }, [initialPrompt, chatId, processUserMessage]);
   
   // Enhanced scroll behavior with better detection
   useEffect(() => {
     if (!messagesContainerRef.current) return;
-    
+        
     // When using shadcn ScrollArea, we need to access the scrollable element differently
     const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
     if (!scrollAreaElement) return;
     
-    const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
-    
-    // More precise check if user is at the bottom (within 150px)
-    const isNearBottom = scrollHeight <= scrollTop + clientHeight + 150;
-    
-    if (isNearBottom) {
-      // Use a small timeout to ensure DOM has updated
-      setTimeout(() => {
-        (scrollAreaElement as HTMLDivElement).scrollTo({
-          top: scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 100);
+    const handleScrollCheck = () => {
+      const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
       
-      setShowScrollButton(false);
-    } else if (messages.length > 0) {
-      // Only show scroll button if we have messages and user has scrolled up
-      setShowScrollButton(true);
-    }
+      // More precise check if user is at the bottom (within 150px)
+      const isNearBottom = scrollHeight <= scrollTop + clientHeight + 150;
+      
+      if (isNearBottom) {
+        // Use a small timeout to ensure DOM has updated
+        setTimeout(() => {
+          (scrollAreaElement as HTMLDivElement).scrollTo({
+            top: scrollHeight,
+            behavior: 'smooth'
+          });
+        }, 100);
+        
+        setShowScrollButton(false);
+      } else if (messages.length > 0) {
+        // Only show scroll button if we have messages and user has scrolled up
+        setShowScrollButton(true);
+      }
+    };
+
+    // Initial check
+    handleScrollCheck();
+    
+    return () => {
+      // No event listeners to clean up in this effect
+    };
   }, [messages]);
   
   // Smoother scroll to bottom with easing
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (!messagesContainerRef.current) return;
     
     // Get the actual scrollable viewport from shadcn ScrollArea
@@ -223,10 +232,10 @@ I'm now rendering this animation for you...`,
     });
     
     setShowScrollButton(false);
-  };
-  
+  }, []);
+
   // Scroll to top for long conversations
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     if (!messagesContainerRef.current) return;
     
     // Get the actual scrollable viewport from shadcn ScrollArea
@@ -237,7 +246,7 @@ I'm now rendering this animation for you...`,
       top: 0,
       behavior: 'smooth'
     });
-  };
+  }, []);
   
   // Add scroll listener to handle both scroll buttons
   useEffect(() => {
@@ -256,16 +265,27 @@ I'm now rendering this animation for you...`,
       } else if (messages.length > 0) {
         setShowScrollButton(true);
       }
-      
+
       // Show top scroll button only when scrolled down significantly
-      setShowScrollTopButton(scrollTop > 300);
+      // setShowScrollTopButton(scrollTop > 300);
     };
     
     scrollAreaElement.addEventListener('scroll', handleScroll);
     return () => scrollAreaElement.removeEventListener('scroll', handleScroll);
   }, [messages.length]);
   
-  const updateRenderProgress = () => {
+  // Handle initial page load animation
+  useEffect(() => {
+    // Short timeout to ensure smooth page transition
+    const pageLoadTimeout = setTimeout(() => {
+      setPageLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(pageLoadTimeout);
+  }, []);
+  
+  // Update render progress with memoized function
+  const updateRenderProgress = useCallback(() => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
       const newProgress = renderProgress + Math.random() * 10;
       if (newProgress < 100) {
@@ -276,18 +296,19 @@ I'm now rendering this animation for you...`,
         completeRendering();
       }
     }
-  };
+  }, [processingStage, renderProgress]);
   
-  const completeRendering = () => {
+  // Complete rendering with memoized function
+  const completeRendering = useCallback(() => {
     setProcessingStage(ProcessingStage.Complete);
     setAIResponse(prev => ({
       ...prev!,
       status: "complete"
     }));
-  };
+  }, []);
   
   // Handle sending follow-up messages
-  const handleSendMessage = (message: string) => {
+  const handleSendMessage = useCallback((message: string) => {
     if (!message.trim()) return;
     
     const userMessage: Message = {
@@ -300,10 +321,10 @@ I'm now rendering this animation for you...`,
     setMessages(prev => [...prev, userMessage]);
     setRenderProgress(0);
     processUserMessage(message);
-  };
+  }, [processUserMessage]);
   
   // Get status message based on current processing stage
-  const getStatusMessage = () => {
+  const getStatusMessage = useCallback(() => {
     switch (processingStage) {
       case ProcessingStage.GeneratingCode:
         return "Generating Manim code...";
@@ -314,23 +335,24 @@ I'm now rendering this animation for you...`,
       default:
         return "";
     }
-  };
+  }, [processingStage, renderProgress]);
   
   // Retry in case of error
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     if (messages.length > 0) {
       const lastUserMessage = messages.filter(m => m.role === "user").pop();
       if (lastUserMessage) {
         processUserMessage(lastUserMessage.content);
       }
     }
-  };
+  }, [messages, processUserMessage]);
   
   // Go back to projects
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     router.push('/');
-  };
+  }, [router]);
 
+  // Scroll to messagesEnd when new messages are added
   useEffect(() => {
     if (messagesEndRef.current) {
       // Find the scroll viewport and scroll to the messages end
@@ -344,21 +366,12 @@ I'm now rendering this animation for you...`,
       };
       
       // Small delay to ensure DOM is updated
-      setTimeout(scrollToView, 100);
+      const scrollTimeout = setTimeout(scrollToView, 100);
+      return () => clearTimeout(scrollTimeout);
     }
-  }, [initialPrompt]);
+  }, [messages]);
 
-  // Handle initial page load animation
-  useEffect(() => {
-    // Short timeout to ensure smooth page transition
-    const pageLoadTimeout = setTimeout(() => {
-      setPageLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(pageLoadTimeout);
-  }, []);
-
-  return (
+    return (
     <div className="flex flex-col h-full rounded-2xl">      
       {/* Main content */}
       <motion.div 
@@ -393,10 +406,10 @@ I'm now rendering this animation for you...`,
                     transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
                     className="h-3 w-3 rounded-full bg-purple-400"
                   />
-                </div>
+          </div>
                 <p className="text-sm text-gray-400">Loading conversation...</p>
               </motion.div>
-            </div>
+      </div>
           ) : (
             <>
               {/* Messages container with enhanced scrolling using ScrollArea */}
@@ -525,9 +538,9 @@ I'm now rendering this animation for you...`,
                         onSend={handleSendMessage}
                         isDisabled={isProcessing} 
                       />
-                    </div>
-                  </div>
-                </div>
+          </div>
+      </div>
+            </div>
               )}
             </>
           )}
@@ -542,10 +555,10 @@ I'm now rendering this animation for you...`,
                 <div className="text-sm text-gray-400 flex items-center">
                   <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
                   {getStatusMessage()}
-                </div>
-              </div>
-            )}
-            
+            </div>
+          </div>
+        )}
+        
             {/* Show content based on state - Removed AnimatePresence */}
             {/* Show video if available */}
             {aiResponse?.videoUrl ? (

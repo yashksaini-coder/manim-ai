@@ -19,19 +19,25 @@ export const HeroSection = () => {
     const handleSubmitPrompt = async (prompt: string) => {
         if (!prompt.trim()) return;
 
-        setIsRedirecting(true);
-        
-        // Generate a unique chat ID
-        const chatId = uuid();
-        
-        // Store the prompt in localStorage for retrieval
-        localStorage.setItem(`chat_${chatId}_prompt`, prompt);
-        
-        // Add a small delay to ensure smooth transition
-        await new Promise(resolve => setTimeout(resolve, 400));
-        
-        // Redirect to chat page with the prompt as a query parameter
-        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(prompt)}`);
+        try {
+            setIsRedirecting(true);
+            
+            // Generate a unique chat ID
+            const chatId = uuid();
+            
+            // Store the prompt in localStorage for retrieval
+            localStorage.setItem(`chat_${chatId}_prompt`, prompt);
+            
+            // Add a small delay to ensure smooth transition
+            await new Promise(resolve => setTimeout(resolve, 400));
+            
+            // Redirect to chat page with the prompt as a query parameter
+            router.push(`/chat/${chatId}?prompt=${encodeURIComponent(prompt)}`);
+        } catch (error) {
+            console.error("Error redirecting to chat:", error);
+            setIsRedirecting(false);
+            // Could add toast notification here
+        }
     };
 
     const prompts = [
