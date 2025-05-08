@@ -48,60 +48,13 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
   const [renderProgress, setRenderProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
   
   // Reference to timeout for cleanup
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Handle initial prompt from URL
-  useEffect(() => {
-    if (initialPrompt) {
-      // Add initial user message
-      const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: initialPrompt,
-        timestamp: new Date(),
-      };
-      
-      setMessages([userMessage]);
-      processUserMessage(initialPrompt);
-    }
-    
-    // Cleanup function
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [initialPrompt]);
-  
-  // Scroll to bottom of messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
-  const updateRenderProgress = () => {
-    if (processingStage === ProcessingStage.RenderingAnimation) {
-      const newProgress = renderProgress + Math.random() * 10;
-      if (newProgress < 100) {
-        setRenderProgress(Math.min(newProgress, 99));
-        timeoutRef.current = setTimeout(updateRenderProgress, 500);
-      } else {
-        setRenderProgress(100);
-        completeRendering();
-      }
-    }
-  };
-  
-  const completeRendering = () => {
-    setProcessingStage(ProcessingStage.Complete);
-    setAIResponse(prev => ({
-      ...prev!,
-      status: "complete"
-    }));
-  };
   
   // Mock API call - replace with your actual API
   const processUserMessage = async (prompt: string) => {
@@ -181,6 +134,75 @@ I'm now rendering this animation for you...`,
     }
   };
   
+  // Handle initial prompt from URL
+  useEffect(() => {
+    if (initialPrompt) {
+      // Add initial user message
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: initialPrompt,
+        timestamp: new Date(),
+      };
+      
+      setMessages([userMessage]);
+      processUserMessage(initialPrompt);
+    }
+    
+    // Cleanup function
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [initialPrompt]);
+  
+  // Scroll to bottom of messages with improved behavior
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+    
+    const container = messagesContainerRef.current;
+    const { scrollHeight, offsetHeight, scrollTop } = container;
+    
+    // Check if user is already at the bottom (or close to it)
+    const isNearBottom = scrollHeight <= scrollTop + offsetHeight + 100;
+    
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollButton(false);
+    } else {
+      // User has scrolled up to read earlier messages
+      setShowScrollButton(true);
+    }
+  }, [messages]);
+  
+  // Handle scroll button click
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setShowScrollButton(false);
+  };
+  
+  const updateRenderProgress = () => {
+    if (processingStage === ProcessingStage.RenderingAnimation) {
+      const newProgress = renderProgress + Math.random() * 10;
+      if (newProgress < 100) {
+        setRenderProgress(Math.min(newProgress, 99));
+        timeoutRef.current = setTimeout(updateRenderProgress, 500);
+      } else {
+        setRenderProgress(100);
+        completeRendering();
+      }
+    }
+  };
+  
+  const completeRendering = () => {
+    setProcessingStage(ProcessingStage.Complete);
+    setAIResponse(prev => ({
+      ...prev!,
+      status: "complete"
+    }));
+  };
+  
   // Handle sending follow-up messages
   const handleSendMessage = (message: string) => {
     if (!message.trim()) return;
@@ -227,13 +249,13 @@ I'm now rendering this animation for you...`,
   };
 
   return (
-    <div className="flex flex-col h-screen border-2 flex-1  border-red-500/10 bg-[#0f0f0f]">      
+    <div className="flex flex-col h-full bg-[#0f0f0f]">      
       {/* Main content */}
-      <div className="flex flex-1 min-h-screen overflow-hidden">
+      <div className="flex flex-1 relative overflow-hidden">
         {/* Left side - Chat area */}
-        <div className="w-2/5 border-r border-[#232323] border-2 border-red-500 flex flex-col h-full">
+        <div className="w-2/5 border-r border-[#232323] flex flex-col h-full">
           {/* Messages container with fixed height and scrolling */}
-          <div className="flex-1 overflow-y-auto border-2 border-blue-500 top-5 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto scrollbar-thin relative" ref={messagesContainerRef}>
             <div className="py-4 space-y-4">
               <div className="space-y-4 mx-auto max-w-[95%]">
                 {/* Messages */}
@@ -275,8 +297,20 @@ I'm now rendering this animation for you...`,
             </div>
           </div>
           
-          {/* Input field - floating above bottom border */}
-          <div className="pb-18 pt-4 px-6 relative">
+          {/* New message button */}
+          {showScrollButton && (
+            <div className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10">
+              <button 
+                onClick={scrollToBottom}
+                className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+              >
+                New message ↓
+              </button>
+            </div>
+          )}
+          
+          {/* Input field - fixed at bottom */}
+          <div className="pt-4 px-6 pb-4 bg-[#0f0f0f]">
             <div className="w-full mx-auto">
               <div className="shadow-xl rounded-xl">
                 <AI_Prompt 
@@ -291,7 +325,7 @@ I'm now rendering this animation for you...`,
         
         {/* Right side - Video area */}
         <div className="w-3/5 flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-8">
             {/* Processing status indicator */}
             {isProcessing && (
               <div className="mb-6">
