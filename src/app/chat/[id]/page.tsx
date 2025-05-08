@@ -7,8 +7,11 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { Code, Video, Play, RefreshCw } from 'lucide-react';
+import { Code, Video, Play, RefreshCw, ChevronLeft } from 'lucide-react';
 import { ChatHeader } from '@/components/chat/ChatHeader';
+import AI_Prompt from '@/components/ai-chat-input';
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/lib/utils";
 
 // Types for our messages
 interface Message {
@@ -44,6 +47,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
   const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
   const [renderProgress, setRenderProgress] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
   
@@ -72,6 +76,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       }
     };
   }, [initialPrompt]);
+  
+  // Scroll to bottom of messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
   
   const updateRenderProgress = () => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
@@ -177,6 +186,8 @@ I'm now rendering this animation for you...`,
   
   // Handle sending follow-up messages
   const handleSendMessage = (message: string) => {
+    if (!message.trim()) return;
+    
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -212,122 +223,216 @@ I'm now rendering this animation for you...`,
       }
     }
   };
+  
+  // Go back to projects
+  const handleBack = () => {
+    router.push('/');
+  };
 
   return (
-    <>
+    <div className="flex flex-col h-screen bg-[#0f0f0f]">
+      {/* Header */}
+      <header className="border-b border-[#232323] bg-[#121212] px-4 py-3 flex items-center z-10">
+        <button 
+          onClick={handleBack}
+          className="mr-3 p-2 rounded-full text-gray-400 hover:text-white hover:bg-[#232323] transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-xl font-semibold text-white">Manim AI Chat</h1>
+        
+        {isProcessing && (
+          <div className="ml-4 flex items-center gap-2 px-3 py-1 bg-[#1e1e1e] rounded-full">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-xs text-green-400">{getStatusMessage()}</span>
+          </div>
+        )}
+      </header>
+      
       {/* Main content */}
-      <div className="flex h-full w-full">
+      <div className="flex flex-1 overflow-hidden">
         {/* Left side - Chat area */}
-        <div className=" w-1/2 border-r border-[#232323] flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <div className="space-y-6 max-w-3xl mx-auto">
-              {/* Messages */}
-              {messages.map((message) => (
-                <ChatMessage 
-                  key={message.id} 
-                  content={message.content} 
-                  role={message.role}
-                  isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
-                />
-              ))}
-              
-              {/* AI is responding - show loading indicator if no messages yet */}
-              {isProcessing && messages.length === 0 && (
-                <ChatMessage 
-                  content="" 
-                  role="ai" 
-                  isLoading={true} 
-                />
-              )}
-              
-              {/* Show code block if available */}
-              {aiResponse?.code && (
-                <div className="mt-4 relative">
-                  <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
-                    <Code className="h-4 w-4" />
-                    <span>code generated</span>
-                  </div>
-                  <ChatCodeBlock code={aiResponse.code} />
+        <div className="w-2/5 border-r border-[#232323] flex flex-col h-full">
+          {/* Messages container with fixed height and scrolling */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <div className="py-4 space-y-4">
+              <AnimatePresence>
+                <div className="space-y-4 mx-auto max-w-[95%]">
+                  {/* Messages */}
+                  {messages.map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ChatMessage 
+                        content={message.content} 
+                        role={message.role}
+                        isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
+                      />
+                    </motion.div>
+                  ))}
+                  
+                  {/* AI is responding - show loading indicator if no messages yet */}
+                  {isProcessing && messages.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <ChatMessage 
+                        content="" 
+                        role="ai" 
+                        isLoading={true} 
+                      />
+                    </motion.div>
+                  )}
+                  
+                  {/* Show code block if available */}
+                  {aiResponse?.code && (
+                    <motion.div 
+                      className="mt-6 relative mx-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                    >
+                      <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
+                        <Code className="h-4 w-4" />
+                        <span>Generated Python Code</span>
+                      </div>
+                      <ChatCodeBlock code={aiResponse.code} />
+                    </motion.div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              )}
+              </AnimatePresence>
             </div>
           </div>
           
-          {/* Input field - fixed at bottom with sidebar width */}
-          <div className="p-4 border-t border-[#232323] bg-[#121212]">
-            <div className="max-w-3xl mx-auto">
-              <ChatInput 
-                onSendMessage={handleSendMessage} 
-                disabled={isProcessing}
-              />
+          {/* Input field - floating above bottom border */}
+          <div className="pb-18 pt-4 px-6 relative">
+            <div className="w-full mx-auto">
+              <div className="shadow-xl rounded-xl">
+                <AI_Prompt 
+                  prompt="" 
+                  onSend={handleSendMessage}
+                  isDisabled={isProcessing} 
+                />
+              </div>
             </div>
           </div>
         </div>
         
         {/* Right side - Video area */}
-        <div className="w-1/2 flex flex-col h-full p-6 overflow-y-auto">
-          {/* Processing status indicator */}
-          {isProcessing && (
-            <div className="mb-6">
-              <div className="w-full bg-[#1e1e1e] rounded-full h-2.5 mb-2">
-                <div 
-                  className="bg-green-500 h-2.5 rounded-full transition-all duration-300 ease-in-out"
-                  style={{ width: `${renderProgress}%` }}
-                ></div>
-              </div>
-              <div className="text-sm text-gray-400 flex items-center">
-                <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-                {getStatusMessage()}
-              </div>
-            </div>
-          )}
-          
-          {/* Show video if available */}
-          {aiResponse?.videoUrl ? (
-            <div className="flex-1 flex flex-col items-center">
-              <div className="w-full text-2xl font-semibold text-green-400 mb-8 flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                <span>Animation Preview</span>
-              </div>
-              <div className="flex-1 flex items-center justify-center w-full">
-                <VideoCard videoUrl={aiResponse.videoUrl} />
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-              <div className="w-full text-2xl font-semibold text-green-400 mb-8 flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                <span>Animation Preview</span>
-              </div>
-              
-              {!isProcessing && !aiResponse?.error && (
-                <div className="text-center mt-8 p-8 border border-dashed border-gray-700 rounded-lg bg-[#191919] w-full max-w-md">
-                  <Play className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-lg text-gray-400">
-                    Enter a prompt to generate a Manim animation
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    For example: "Create a bouncing ball animation" or "Show a sine wave transform"
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Show error if any */}
-          {aiResponse?.error && (
-            <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
-              <p className="mb-3">{aiResponse.error}</p>
-              <button 
-                onClick={handleRetry} 
-                className="bg-red-900/30 hover:bg-red-800/40 text-white py-1 px-3 rounded-md text-sm flex items-center gap-1"
+        <div className="w-3/5 flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Processing status indicator */}
+            {isProcessing && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
               >
-                <RefreshCw className="h-3 w-3" /> Retry
-              </button>
-            </div>
-          )}
+                <div className="w-full bg-[#1e1e1e] rounded-full h-2.5 mb-2 overflow-hidden">
+                  <motion.div 
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full"
+                    style={{ width: `${renderProgress}%` }}
+                    animate={{ width: `${renderProgress}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+                <div className="text-sm text-gray-400 flex items-center">
+                  <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                  {getStatusMessage()}
+                </div>
+              </motion.div>
+            )}
+            
+            <AnimatePresence mode="wait">
+              {/* Show video if available */}
+              {aiResponse?.videoUrl ? (
+                <motion.div 
+                  key="video"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col"
+                >
+                  <div className="flex-1 flex items-center justify-center w-full rounded-xl overflow-hidden border border-[#232323] shadow-lg bg-black">
+                    <VideoCard videoUrl={aiResponse.videoUrl} />
+                  </div>
+                  
+                  {aiResponse.code && (
+                    <div className="w-full mt-6 p-4 bg-[#131313] rounded-lg border border-[#232323] text-gray-300">
+                      <h3 className="text-lg font-medium mb-2 text-white">Animation Details</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 mb-1">Animation Type</p>
+                          <p>Square to Circle Transform</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 mb-1">Duration</p>
+                          <p>3.5 seconds</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 mb-1">Resolution</p>
+                          <p>1280 x 720</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 mb-1">Renderer</p>
+                          <p>Cairo</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              ) : !isProcessing && !aiResponse?.error ? (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col items-center justify-center text-gray-500 min-h-[500px]"
+                >
+                  <div className="w-full text-2xl font-semibold text-pink-400 mb-8 flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    <span>Animation Preview</span>
+                  </div>
+                  
+                  <div className="text-center p-8 border border-dashed border-gray-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
+                    <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
+                      <Play className="h-8 w-8 text-pink-400" />
+                    </div>
+                    <p className="text-lg text-gray-300 font-medium">
+                      Enter a prompt to generate a Manim animation
+                    </p>
+                    <p className="text-sm text-gray-500 mt-3 leading-relaxed">
+                      Try something like: "Create a bouncing ball animation with trail effects", "Animate the quadratic formula", or "Show a sine wave transform"
+                    </p>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+            
+            {/* Show error if any */}
+            {aiResponse?.error && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4"
+              >
+                <p className="mb-3">{aiResponse.error}</p>
+                <button 
+                  onClick={handleRetry} 
+                  className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" /> Try Again
+                </button>
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 } 

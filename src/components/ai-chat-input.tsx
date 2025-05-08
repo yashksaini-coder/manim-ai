@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Bot, Check, ChevronDown, Paperclip } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea";
@@ -54,20 +54,32 @@ const GROQ_SVG = (
     </div>
 );
 
-export default function AI_Prompt() {
-    const [value, setValue] = useState("");
+export default function AI_Prompt({prompt, onSend, isDisabled}: {
+    prompt: string;
+    onSend?: (message: string) => void;
+    isDisabled?: boolean;
+}) {
+    const [value, setValue] = useState(prompt || "");
     const { textareaRef, adjustHeight } = useAutoResizeTextarea({
         minHeight: 72,
         maxHeight: 300,
     });
-    const [selectedModel, setSelectedModel] = useState("llama-3.1-70b-versatile");
+    const [selectedModel, setSelectedModel] = useState("gemma-2-9b-it");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [videoUrl, setVideoUrl] = useState("");
     const [code, setCode] = useState("");
     const [query, setQuery] = useState("");
+
+    // Use useEffect to set the initial value when prompt changes
+    useEffect(() => {
+        if (prompt) {
+            setValue(prompt);
+            // Adjust height after setting value
+            setTimeout(adjustHeight, 0);
+        }
+    }, [prompt, adjustHeight]);
 
     const AI_MODELS = [
         "llama-3.1-70b-versatile",
@@ -157,18 +169,26 @@ export default function AI_Prompt() {
     };
 
     const handleSubmitPrompt = async () => {
-
         if (!value.trim()) return;
+
+        // If onSend prop is provided, use it instead of default behavior
+        if (onSend) {
+            onSend(value);
+            setValue(""); // Clear input after sending
+            return;
+        }
 
         setIsLoading(true);
         // Generate a unique chat ID
         const chatId = uuidv4();
 
-        setLoading(true);
         setError("");
         setVideoUrl("");
         setCode("");
+        setQuery(value); // Save the query value
+
         try {
+            // Animate to show processing
             // 1. Generate code from query
             const codeRes = await fetch(
                 `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
@@ -176,13 +196,14 @@ export default function AI_Prompt() {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        prompt: query,
+                        prompt: value, // Use the current value instead of query
                         model: selectedModel,
                     }),
                 }
             );
             const codeData = await codeRes.json();
             const cleanedCode = cleaner(codeData.code);
+            console.log(cleanedCode);
             setCode(cleanedCode);
 
             // 2. Generate video from cleaned code
@@ -205,30 +226,29 @@ export default function AI_Prompt() {
         } catch (err) {
             setError("Failed to generate video. Please try again.");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
+
         // Redirect to the chat page with the prompt as a query parameter
         router.push(`/chat/${chatId}`);
     };
 
-
-
     return (
-        <div className="w-full max-w-2xl mx-auto py-4">
-            <div className="bg-black/5 dark:bg-white/5 rounded-2xl">
+        <div className="w-full">
+            <div className="bg-black/5 dark:bg-[#222] rounded-xl">
                 <div className="relative">
                     <div className="relative flex flex-col">
                         <div
                             className="overflow-y-auto"
-                            style={{ maxHeight: "400px" }}
+                            style={{ maxHeight: "120px" }}
                         >
                             <Textarea
                                 id="ai-input-15"
                                 value={value}
-                                placeholder={"What can I do for you?"}
+                                placeholder={"What animation would you like to create?"}
                                 className={cn(
-                                    "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-white/5 border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-white/70 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                                    "min-h-[72px]"
+                                    "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-[#222] border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-gray-400 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                                    "min-h-[52px] text-sm"
                                 )}
                                 ref={textareaRef}
                                 onKeyDown={handleKeyDown}
@@ -236,17 +256,19 @@ export default function AI_Prompt() {
                                     setValue(e.target.value);
                                     adjustHeight();
                                 }}
+                                disabled={isLoading || isDisabled}
                             />
                         </div>
 
-                        <div className="h-14 bg-black/5 dark:bg-white/5 rounded-b-xl flex items-center">
-                            <div className="absolute left-3 right-3 bottom-3 flex items-center justify-between w-[calc(100%-24px)]">
+                        <div className="h-12 bg-black/5 dark:bg-[#222] rounded-b-xl flex items-center border-t border-[#232323]/20">
+                            <div className="absolute left-3 right-3 bottom-2 flex items-center justify-between w-[calc(100%-24px)]">
                                 <div className="flex items-center gap-2">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
-                                                className="flex items-center gap-1 h-8 pl-1 pr-2 text-xs rounded-md dark:text-white hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
+                                                className="flex items-center gap-1 h-7 pl-1 pr-2 text-xs rounded-md dark:text-white hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500"
+                                                disabled={isLoading || isDisabled}
                                             >
                                                 <AnimatePresence mode="wait">
                                                     <motion.div
@@ -273,7 +295,7 @@ export default function AI_Prompt() {
                                                             selectedModel
                                                             ]
                                                         }
-                                                        {selectedModel}
+                                                        <span className="max-w-[80px] truncate">{selectedModel}</span>
                                                         <ChevronDown className="w-3 h-3 opacity-50" />
                                                     </motion.div>
                                                 </AnimatePresence>
@@ -283,7 +305,7 @@ export default function AI_Prompt() {
                                             className={cn(
                                                 "min-w-[10rem]",
                                                 "border-black/10 dark:border-white/10",
-                                                "bg-gradient-to-b from-white via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-800"
+                                                "bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950"
                                             )}
                                         >
                                             {AI_MODELS.map((model) => (
@@ -302,49 +324,108 @@ export default function AI_Prompt() {
                                                     </div>
                                                     {selectedModel ===
                                                         model && (
-                                                            <Check className="w-4 h-4 text-blue-500" />
+                                                            <Check className="w-4 h-4 text-pink-500" />
                                                         )}
                                                 </DropdownMenuItem>
                                             ))}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
-                                    <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-0.5" />
+                                    <div className="h-4 w-px bg-black/10 dark:bg-[#333] mx-0.5" />
                                     <label
                                         className={cn(
-                                            "rounded-lg p-2 bg-black/5 dark:bg-white/5 cursor-pointer",
-                                            "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500",
-                                            "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+                                            "rounded-lg p-1.5 bg-black/5 dark:bg-[#222] cursor-pointer",
+                                            "hover:bg-black/10 dark:hover:bg-[#2a2a2a] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500",
+                                            "text-black/40 dark:text-gray-400 hover:text-black dark:hover:text-white",
+                                            (isLoading || isDisabled) && "opacity-50 pointer-events-none"
                                         )}
                                         aria-label="Attach file"
                                     >
-                                        <input type="file" className="hidden" />
-                                        <Paperclip className="w-4 h-4 transition-colors" />
+                                        <input type="file" className="hidden" disabled={isLoading || isDisabled} />
+                                        <Paperclip className="w-3.5 h-3.5 transition-colors" />
                                     </label>
                                 </div>
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        "rounded-lg p-2 bg-black/5 dark:bg-white/5",
-                                        "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
+                                <AnimatePresence mode="wait">
+                                    {isLoading ? (
+                                        <motion.div
+                                            key="loading"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            className="rounded-lg p-1.5 bg-pink-500 text-white"
+                                        >
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ 
+                                                    duration: 1, 
+                                                    repeat: Infinity, 
+                                                    ease: "linear" 
+                                                }}
+                                                className="w-3.5 h-3.5"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
+                                                    <circle 
+                                                        cx="12" 
+                                                        cy="12" 
+                                                        r="10" 
+                                                        stroke="currentColor" 
+                                                        strokeWidth="4" 
+                                                        strokeOpacity="0.25" 
+                                                    />
+                                                    <path 
+                                                        d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22" 
+                                                        stroke="currentColor" 
+                                                        strokeWidth="4" 
+                                                        strokeLinecap="round" 
+                                                    />
+                                                </svg>
+                                            </motion.div>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.button
+                                            key="send"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            type="button"
+                                            className={cn(
+                                                "rounded-lg p-1.5",
+                                                value.trim() 
+                                                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" 
+                                                    : "bg-black/5 dark:bg-[#222]",
+                                                "hover:bg-pink-600 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500 transition-colors"
+                                            )}
+                                            aria-label="Send message"
+                                            disabled={!value.trim() || isLoading || isDisabled}
+                                            onClick={handleSubmitPrompt}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            <ArrowRight
+                                                className={cn(
+                                                    "w-3.5 h-3.5 transition-opacity duration-200",
+                                                    value.trim() && !isLoading && !isDisabled
+                                                        ? "opacity-100"
+                                                        : "opacity-30"
+                                                )}
+                                            />
+                                        </motion.button>
                                     )}
-                                    aria-label="Send message"
-                                    disabled={!value.trim() || isLoading}
-                                    onClick={handleSubmitPrompt}
-                                >
-                                    <ArrowRight
-                                        className={cn(
-                                            "w-4 h-4 dark:text-white transition-opacity duration-200",
-                                            value.trim() && !isLoading
-                                                ? "opacity-100"
-                                                : "opacity-30"
-                                        )}
-                                    />
-                                </button>
+                                </AnimatePresence>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            {error && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs"
+                >
+                    {error}
+                </motion.div>
+            )}
         </div>
     );
 }

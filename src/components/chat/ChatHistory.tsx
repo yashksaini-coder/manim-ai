@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Info, ChevronRight, ArrowUp } from "lucide-react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Image from "next/image";
 
 type Message = {
@@ -36,7 +36,7 @@ export function ChatHistory({
   generating,
 }: ChatHistoryProps) {
   const [input, setInput] = useState("");
-  const { user } = useAuth();
+  const user = useUser();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -91,7 +91,7 @@ export function ChatHistory({
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
                         {message.role === "USER" ? (
                           <Image
-                            src={user?.imageUrl || "/user-placeholder.png"}
+                            src={user?.user?.imageUrl || "/user-placeholder.png"}
                             alt="User"
                             width={32}
                             height={32}

@@ -13,8 +13,8 @@ export default function ChatLayout({ children, params }: ChatLayoutProps) {
     <div className="flex flex-col h-screen bg-[#121212]">
       
       {/* Main Content with padding */}
-      <div className="flex-1 overflow-hidden px-6 py-4">
-        <div className="h-full rounded-lg bg-[#121212] border border-[#232323] overflow-hidden">
+      <div className="flex-1 overflow-hidden px-10 py-6 mt-20">
+        <div className="h-full rounded-lg bg-[#121212] border border-white overflow-hidden">
           {children}
         </div>
       </div>
