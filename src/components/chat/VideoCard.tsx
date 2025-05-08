@@ -1,93 +1,49 @@
 "use client";
 
-import { Download, ExternalLink, Maximize2, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Download, ExternalLink, Play, RefreshCw } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface VideoCardProps {
   videoUrl: string;
+  isLoading?: boolean;
 }
 
-export function VideoCard({ videoUrl }: VideoCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
+  const [loaded, setLoaded] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
+  
+  // Simulate loading progress
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          const increment = prev < 30 ? 5 : prev < 60 ? 3 : prev < 90 ? 1 : 0.5;
+          return Math.min(prev + increment, 95); // Cap at 95% until actually loaded
+        });
+      }, 300);
+      
+      return () => clearInterval(interval);
+    } else {
+      setLoadingProgress(100);
+    }
+  }, [isLoading]);
   
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     
-    const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-      if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-      }
-    };
-    
     const handleLoadedData = () => {
-      setDuration(video.duration);
+      setLoaded(true);
     };
     
-    const handlePause = () => {
-      setIsPaused(true);
-    };
-    
-    const handlePlay = () => {
-      setIsPaused(false);
-    };
-    
-    video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('play', handlePlay);
     
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('play', handlePlay);
     };
   }, []);
-  
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-  
-  const handlePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    if (video.paused) {
-      video.play();
-    } else {
-      video.pause();
-    }
-  };
-  
-  const handleMuteToggle = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  };
-  
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const progressBar = progressRef.current;
-    const video = videoRef.current;
-    if (!progressBar || !video) return;
-    
-    const rect = progressBar.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    video.currentTime = pos * video.duration;
-  };
   
   const handleDownload = async () => {
     try {
@@ -108,179 +64,104 @@ export function VideoCard({ videoUrl }: VideoCardProps) {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, type: "spring" }}
-      className="rounded-lg overflow-hidden border border-green-800/30 bg-[#1A202C] w-full max-w-[640px] shadow-xl relative"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-4xl animate-fade-in rounded-lg overflow-hidden bg-neutral-950 border border-[#232323]"
     >
-      <div className="px-4 py-2 bg-green-900/20 flex justify-between items-center">
-        <motion.div 
-          initial={{ x: -10, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center gap-2"
+      <div className="relative">
+        {/* Loading overlay */}
+        <AnimatePresence>
+          {(isLoading || !loaded) && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10"
+            >
+              {/* Loading animation */}
+              <div className="mb-4 relative">
+                <div className="w-12 h-12 rounded-full border-t-2 border-l-2 border-r-2 border-green-500 animate-spin"></div>
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    repeatType: "reverse", 
+                    duration: 1.5 
+                  }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <RefreshCw className="h-6 w-6 text-green-500" />
+                </motion.div>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="w-48 h-1.5 bg-gray-800 rounded-full overflow-hidden mb-2">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-green-500 to-teal-500"
+                  style={{ width: `${loadingProgress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+              <div className="text-xs text-gray-400">
+                {isLoading ? "Generating animation..." : "Loading video..."}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Video */}
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          controls
+          autoPlay
+          className="w-full h-full object-contain bg-black rounded-lg"
         >
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }}
-            className="w-3 h-3 rounded-full bg-green-500"
-          ></motion.div>
-        </motion.div>
-        <motion.div 
-          initial={{ x: 10, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex items-center gap-2"
-        >
+          Your browser does not support the video tag.
+        </video>
+        
+        {/* Control overlay */}
+        <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-center z-20">
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleDownload}
-            className="text-gray-400 hover:text-white p-1 hover:bg-[#293040] rounded transition-all"
-            title="Download video"
+            className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
+            aria-label="Download video"
           >
-            <Download size={16} />
+            <Download className="h-4 w-4" />
           </motion.button>
+          
           <motion.a
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             href={videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white p-1 hover:bg-[#293040] rounded transition-all"
+            className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
             title="Open in new tab"
           >
-            <ExternalLink size={16} />
+            <ExternalLink className="h-4 w-4" />
           </motion.a>
-        </motion.div>
+        </div>
       </div>
       
-      <div className="relative bg-black group">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full aspect-video object-contain"
-          autoPlay
-          loop
-          playsInline
-        />
-        
-        {/* Video controls overlay */}
-        <AnimatePresence>
-          {isHovered && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 flex flex-col justify-between p-4"
-            >
-              {/* Top controls */}
-              <div className="flex justify-end">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="bg-black/40 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/60 transition-colors"
-                  onClick={() => {
-                    // Full screen logic
-                    videoRef.current?.requestFullscreen();
-                  }}
-                >
-                  <Maximize2 size={16} />
-                </motion.button>
-              </div>
-              
-              {/* Center play/pause button */}
-              <motion.div 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-              >
-                <button
-                  onClick={handlePlayPause}
-                  className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors text-white rounded-full p-4"
-                >
-                  {isPaused ? (
-                    <Play size={20} fill="white" />
-                  ) : (
-                    <Pause size={20} />
-                  )}
-                </button>
-              </motion.div>
-              
-              {/* Bottom controls */}
-              <div className="space-y-2">
-                {/* Progress bar */}
-                <div 
-                  ref={progressRef}
-                  className="w-full h-1 bg-white/30 rounded-full overflow-hidden cursor-pointer"
-                  onClick={handleProgressClick}
-                >
-                  <motion.div 
-                    className="h-full bg-green-500"
-                    style={{ width: `${progress}%` }}
-                    layoutId="progress"
-                  />
-                </div>
-                
-                {/* Time and volume controls */}
-                <div className="flex justify-between items-center">
-                  <div className="text-white text-xs">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </div>
-                  
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleMuteToggle}
-                    className="text-white hover:text-green-300 transition-colors"
-                  >
-                    {isMuted ? (
-                      <VolumeX size={16} />
-                    ) : (
-                      <Volume2 size={16} />
-                    )}
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        {/* Custom play button when video is paused and not hovered */}
-        {isPaused && !isHovered && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.1 }}
-            onClick={handlePlayPause}
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors text-white rounded-full p-4"
-          >
-            <Play size={20} fill="white" />
-          </motion.button>
-        )}
-      </div>
-      
-      {/* Video details footer */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="px-4 py-2 bg-[#1A202C]/80 text-xs text-gray-400 flex justify-between items-center"
-      >
-        <span>Manim Animation</span>
-        <span>{formatTime(duration)}</span>
-      </motion.div>
-      
-      {/* Glow effect */}
-      <motion.div 
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-teal-500/10 opacity-0 rounded-lg"
-        animate={{ opacity: isHovered ? 0.5 : 0 }}
-        transition={{ duration: 0.3 }}
-      />
+      {/* Empty state that shows when no video */}
+      {!videoUrl && !isLoading && (
+        <div className="flex flex-col items-center justify-center p-10 bg-black rounded-lg min-h-[300px]">
+          <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+            <Play className="h-8 w-8 text-green-400" />
+          </div>
+          <p className="text-lg text-gray-300 font-medium text-center">
+            No animation loaded
+          </p>
+          <p className="text-sm text-gray-500 mt-3 text-center">
+            Enter a prompt to generate a Manim animation
+          </p>
+        </div>
+      )}
     </motion.div>
   );
 } 

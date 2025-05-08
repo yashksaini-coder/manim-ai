@@ -156,8 +156,6 @@ I'm now rendering this animation for you...`,
       
       // Step 2: Start rendering animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
-      setRenderProgress(0);
-      updateRenderProgress();
       
       // Step 3: Complete rendering after a delay (in real app, would wait for actual render)
       await new Promise(resolve => {
@@ -165,7 +163,6 @@ I'm now rendering this animation for you...`,
       });
       
       // Update with the video URL once "rendering" is complete
-      // In a real app, this would be the URL returned from your backend
       setAIResponse(prev => ({
         ...prev!,
         videoUrl: "https://assets.codepen.io/308367/firefly-5713-manim.mp4",
@@ -333,14 +330,6 @@ I'm now rendering this animation for you...`,
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-6"
               >
-                <div className="w-full bg-[#1e1e1e] rounded-full h-2.5 mb-2 overflow-hidden">
-                  <motion.div 
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full"
-                    style={{ width: `${renderProgress}%` }}
-                    animate={{ width: `${renderProgress}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
                 <div className="text-sm text-gray-400 flex items-center">
                   <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
                   {getStatusMessage()}
@@ -356,14 +345,17 @@ I'm now rendering this animation for you...`,
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex-1 flex flex-col"
+                  className="flex-1 flex flex-col items-center justify-center"
                 >
-                  <div className="flex-1 flex items-center justify-center w-full rounded-xl overflow-hidden border border-[#232323] shadow-lg bg-black">
-                    <VideoCard videoUrl={aiResponse.videoUrl} />
+                  <div className="w-full max-w-[90%]">
+                    <VideoCard 
+                      videoUrl={aiResponse.videoUrl}
+                      isLoading={false}
+                    />
                   </div>
                   
                   {aiResponse.code && (
-                    <div className="w-full mt-6 p-4 bg-[#131313] rounded-lg border border-[#232323] text-gray-300">
+                    <div className="w-full mt-6 p-4 bg-[#131313] rounded-lg border border-[#232323] text-gray-300 max-w-[90%]">
                       <h3 className="text-lg font-medium mb-2 text-white">Animation Details</h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -409,6 +401,21 @@ I'm now rendering this animation for you...`,
                     <p className="text-sm text-gray-500 mt-3 leading-relaxed">
                       Try something like: "Create a bouncing ball animation with trail effects", "Animate the quadratic formula", or "Show a sine wave transform"
                     </p>
+                  </div>
+                </motion.div>
+              ) : isProcessing ? (
+                <motion.div 
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col items-center justify-center"
+                >
+                  <div className="w-full max-w-[90%]">
+                    <VideoCard 
+                      videoUrl="" 
+                      isLoading={true}
+                    />
                   </div>
                 </motion.div>
               ) : null}
