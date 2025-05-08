@@ -8,20 +8,39 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
 import AIChatInput from "@/components/ai-chat-input";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export const HeroSection = () => {
     const { user } = useUser();
     const router = useRouter();
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
-    const handleClick = () => {
-        if (!user) {
-            router.push('/sign-in?redirect_url=/generate');
-        } else {
-            // Generate a unique chat session id using uuid
-            const chatId = uuid();
-            router.push(`/generate/`);
-        }
+    const handleSubmitPrompt = async (prompt: string) => {
+        if (!prompt.trim()) return;
+
+        setIsRedirecting(true);
+        
+        // Generate a unique chat ID
+        const chatId = uuid();
+        
+        // Store the prompt in localStorage for retrieval
+        localStorage.setItem(`chat_${chatId}_prompt`, prompt);
+        
+        // Add a small delay to ensure smooth transition
+        await new Promise(resolve => setTimeout(resolve, 400));
+        
+        // Redirect to chat page with the prompt as a query parameter
+        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(prompt)}`);
     };
+
+    const prompts = [
+        "Create a simple animation of a bouncing ball.",
+        "Transform blue square to a red circle.",
+        "Area of a circle with radius 5.",
+        "Linear interpolation between two points.",
+        "Linear equation of a line passing through two points.",
+    ]
 
     return (
         <div>
@@ -53,8 +72,15 @@ export const HeroSection = () => {
                             </p>
                         </div>
                         {/* Centered AIChatInput below hero */}
-                        <div className="flex mt-20 justify-center">
-                            <AIChatInput />
+                        <div className="flex mt-20 flex-col gap-4 justify-center relative">
+                            {isRedirecting ? (
+                                <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                                    <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                                    <p className="text-sm text-gray-500">Preparing your animation workspace...</p>
+                                </div>
+                            ) : (
+                                <AIChatInput prompt="" onSend={handleSubmitPrompt} />
+                            )}
                         </div>
                     </div>
                     {/* <div className="mx-auto mb-8 max-w-5xl px-6 md:mb-20 xl:px-0">

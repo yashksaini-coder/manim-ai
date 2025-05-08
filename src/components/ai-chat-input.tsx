@@ -124,34 +124,6 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
                 />
             </svg>
         ),
-        "Claude 3.5 Sonnet": (
-            <div>
-                <svg
-                    fill="#000"
-                    fillRule="evenodd"
-                    style={{ flex: "none", lineHeight: "1" }}
-                    viewBox="0 0 24 24"
-                    width="1em"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="dark:hidden block"
-                >
-                    <title>Anthropic Icon Light</title>
-                    <path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0h3.767L16.906 20h-3.674l-1.343-3.461H5.017l-1.344 3.46H0L6.57 3.522zm4.132 9.959L8.453 7.687 6.205 13.48H10.7z" />
-                </svg>
-                <svg
-                    fill="#ffff"
-                    fillRule="evenodd"
-                    style={{ flex: "none", lineHeight: "1" }}
-                    viewBox="0 0 24 24"
-                    width="1em"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="hidden dark:block"
-                >
-                    <title>Anthropic Icon Dark</title>
-                    <path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0h3.767L16.906 20h-3.674l-1.343-3.461H5.017l-1.344 3.46H0L6.57 3.522zm4.132 9.959L8.453 7.687 6.205 13.48H10.7z" />
-                </svg>
-            </div>
-        ),
         "GPT-4-1 Mini": OPENAI_SVG,
         "GPT-4-1": OPENAI_SVG,
     };
@@ -186,8 +158,18 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
         setCode("");
         setQuery(value); // Save the query value
 
+        // Store the prompt and chatId in localStorage for retrieval in chat page
+        localStorage.setItem(`chat_${chatId}_prompt`, value);
+        localStorage.setItem(`chat_${chatId}_model`, selectedModel);
+        
+        // Add a small delay to ensure the prompt is stored before redirecting
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Redirect to the chat page with the prompt as a query parameter
+        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${encodeURIComponent(selectedModel)}`);
+        
         try {
-            // Animate to show processing
+            // Continue processing in the background after redirect
             // 1. Generate code from query
             const codeRes = await fetch(
                 `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
@@ -227,9 +209,6 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
         } finally {
             setIsLoading(false);
         }
-
-        // Redirect to the chat page with the prompt as a query parameter
-        router.push(`/chat/${chatId}`);
     };
 
     return (

@@ -48,6 +48,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showScrollTopButton, setShowScrollTopButton] = useState(false);
+  const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
   
   const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
   
@@ -132,20 +134,41 @@ I'm now rendering this animation for you...`,
     }
   };
   
-  // Handle initial prompt from URL
+  // Handle initial prompt from URL or localStorage
   useEffect(() => {
-    if (initialPrompt) {
-      // Add initial user message
-      const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: initialPrompt,
-        timestamp: new Date(),
-      };
+    const loadInitialPrompt = async () => {
+      setIsLoadingInitialMessage(true);
       
-      setMessages([userMessage]);
-      processUserMessage(initialPrompt);
-    }
+      // First check URL parameters
+      let promptToUse = initialPrompt;
+      
+      // If not found in URL, try localStorage
+      if (!promptToUse) {
+        const storedPrompt = localStorage.getItem(`chat_${params.id}_prompt`);
+        if (storedPrompt) {
+          promptToUse = storedPrompt;
+        }
+      }
+      
+      if (promptToUse) {
+        // Add initial user message with a small delay to allow component to mount
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const userMessage: Message = {
+          id: `user-${Date.now()}`,
+          role: "user",
+          content: promptToUse,
+          timestamp: new Date(),
+        };
+        
+        setMessages([userMessage]);
+        processUserMessage(promptToUse);
+      }
+      
+      setIsLoadingInitialMessage(false);
+    };
+    
+    loadInitialPrompt();
     
     // Cleanup function
     return () => {
@@ -153,7 +176,7 @@ I'm now rendering this animation for you...`,
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [initialPrompt]);
+  }, [initialPrompt, params.id]);
   
   // Enhanced scroll behavior with better detection
   useEffect(() => {
@@ -248,7 +271,7 @@ I'm now rendering this animation for you...`,
       if (newProgress < 100) {
         setRenderProgress(Math.min(newProgress, 99));
         timeoutRef.current = setTimeout(updateRenderProgress, 500);
-      } else {
+        } else {
         setRenderProgress(100);
         completeRendering();
       }
@@ -325,140 +348,189 @@ I'm now rendering this animation for you...`,
     }
   }, [initialPrompt]);
 
+  // Handle initial page load animation
+  useEffect(() => {
+    // Short timeout to ensure smooth page transition
+    const pageLoadTimeout = setTimeout(() => {
+      setPageLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(pageLoadTimeout);
+  }, []);
+
   return (
     <div className="flex flex-col h-full rounded-2xl">      
       {/* Main content */}
-      <div className="flex flex-1 relative rounded-2xl overflow-hidden">
+      <motion.div 
+        className="flex flex-1 relative rounded-2xl overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
         {/* Left side - Chat area */}
         <div className="w-2/5 border justify-stretch bg-gray-950 rounded-2xl flex border-spacing-4 mx-4 flex-col h-full">
-          {/* Messages container with enhanced scrolling using ScrollArea */}
-          <ScrollArea 
-            ref={messagesContainerRef}
-            className="flex-1 overflow-hidden relative"
-            scrollHideDelay={100}
-            type="always"
-          >
-            <div className="py-4 space-y-4">
-              <div className="space-y-4 mx-auto max-w-[95%]">
-                {/* Messages with AnimatePresence for better transitions */}
-                <AnimatePresence initial={false}>
-                  {messages.map((message) => (
-                    <motion.div 
-                      key={message.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ 
-                        duration: 0.4,
-                        ease: [0.25, 0.1, 0.25, 1.0]
-                      }}
-                    >
-                      <ChatMessage 
-                        content={message.content} 
-                        role={message.role}
-                        isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                
-                {/* AI is responding - show loading indicator if no messages yet */}
-                <AnimatePresence>
-                  {isProcessing && messages.length === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <ChatMessage 
-                        content="" 
-                        role="ai" 
-                        isLoading={true} 
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                
-                {/* Show code block if available */}
-                <AnimatePresence>
-                  {aiResponse?.code && (
-                    <motion.div 
-                      className="mt-6 relative mx-4"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.2 }}
-                    >
-                      <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
-                        <Code className="h-4 w-4" />
-                        <span>Generated Python Code</span>
-                      </div>
-                      <ChatCodeBlock code={aiResponse.code} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div ref={messagesEndRef} className="h-px" />
-              </div>
-            </div>
-          </ScrollArea>
-          
-          {/* Scroll to top button
-          <AnimatePresence>
-            {showScrollTopButton && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.3 }}
-                className="fixed top-24 left-[20%] transform -translate-x-1/2 z-10"
+          {/* Page loading state */}
+          {pageLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center space-y-4"
               >
-                <motion.button 
-                  onClick={scrollToTop}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
-                >
-                  <ArrowUp className="h-4 w-4" /> Top
-                </motion.button>
+                <div className="flex space-x-2">
+                  <motion.div
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="h-3 w-3 rounded-full bg-purple-400"
+                  />
+                  <motion.div
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                    className="h-3 w-3 rounded-full bg-purple-400"
+                  />
+                  <motion.div
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                    className="h-3 w-3 rounded-full bg-purple-400"
+                  />
+                </div>
+                <p className="text-sm text-gray-400">Loading conversation...</p>
               </motion.div>
-            )}
-          </AnimatePresence>
-           */}
-          
-          {/* New message button with enhanced animation */}
-          <AnimatePresence>
-            {showScrollButton && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.3 }}
-                className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10"
-              >
-                <motion.button 
-                  onClick={scrollToBottom}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
-                >
-                  <ArrowDown className="h-4 w-4" /> New message
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          {/* Input field - fixed at bottom */}
-          <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
-            <div className="w-full mx-auto">
-              <div className="shadow-xl rounded-xl">
-                <AI_Prompt 
-                  prompt="" 
-                  onSend={handleSendMessage}
-                  isDisabled={isProcessing} 
-                />
-              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Messages container with enhanced scrolling using ScrollArea */}
+              <ScrollArea 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-hidden relative"
+                scrollHideDelay={100}
+                type="always"
+              >
+                <div className="py-4 space-y-4">
+                  <div className="space-y-4 mx-auto max-w-[95%]">
+                    {/* Messages with AnimatePresence for better transitions */}
+                    <AnimatePresence initial={false}>
+                      {messages.map((message) => (
+                        <motion.div 
+                          key={message.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ 
+                            duration: 0.4,
+                            ease: [0.25, 0.1, 0.25, 1.0]
+                          }}
+                        >
+                          <ChatMessage 
+                            content={message.content} 
+                            role={message.role}
+                            isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    
+                    {/* AI is responding - show loading indicator if no messages yet */}
+                    <AnimatePresence>
+                      {(isProcessing || isLoadingInitialMessage) && messages.length === 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <ChatMessage 
+                            content="" 
+                            role="ai" 
+                            isLoading={true} 
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    
+                    {/* Show code block if available */}
+                    <AnimatePresence>
+                      {aiResponse?.code && (
+                        <motion.div 
+                          className="mt-6 relative mx-4"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4, delay: 0.2 }}
+                        >
+                          <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
+                            <Code className="h-4 w-4" />
+                            <span>Generated Python Code</span>
+                          </div>
+                          <ChatCodeBlock code={aiResponse.code} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div ref={messagesEndRef} className="h-px" />
+                  </div>
+              </div>
+              </ScrollArea>
+              
+              {/* Scroll to top button
+              <AnimatePresence>
+                {showScrollTopButton && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.3 }}
+                    className="fixed top-24 left-[20%] transform -translate-x-1/2 z-10"
+                  >
+                    <motion.button 
+                      onClick={scrollToTop}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+                    >
+                      <ArrowUp className="h-4 w-4" /> Top
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+               */}
+              
+              {/* New message button with enhanced animation */}
+              <AnimatePresence>
+                {showScrollButton && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.3 }}
+                    className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10"
+                  >
+                    <motion.button 
+                      onClick={scrollToBottom}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+                    >
+                      <ArrowDown className="h-4 w-4" /> New message
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {/* Input field - fixed at bottom - show only when page is loaded */}
+              {!pageLoading && (
+                <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
+                  <div className="w-full mx-auto">
+                    <div className="shadow-xl rounded-xl">
+                      <AI_Prompt 
+                        prompt="" 
+                        onSend={handleSendMessage}
+                        isDisabled={isProcessing} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
         
         {/* Right side - Video area */}
@@ -527,7 +599,7 @@ I'm now rendering this animation for you...`,
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 } 

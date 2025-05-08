@@ -1,7 +1,7 @@
 "use client";
 
 import { Bot, Loader2, User } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +16,30 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ content, role, isLoading = false, children }: ChatMessageProps) {
+  // Add state to control fading between loading and content
+  const [showLoading, setShowLoading] = useState(isLoading);
+  const [showContent, setShowContent] = useState(!isLoading && content.length > 0);
+  
+  // Handle transitions between loading and content states
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    if (isLoading) {
+      setShowLoading(true);
+      setShowContent(false);
+    } else if (content) {
+      // When switching from loading to content, add a small delay for a smooth transition
+      timeout = setTimeout(() => {
+        setShowLoading(false);
+        setShowContent(true);
+      }, 300);
+    }
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isLoading, content]);
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -71,43 +95,58 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
             </span>
           </motion.div>
           
-          {/* Message Content */}
-          {isLoading ? (
-            <div className="flex items-center gap-3 text-gray-400 min-h-[24px]">
-              <div className="flex space-x-1">
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="h-2 w-2 rounded-full bg-purple-400"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                  className="h-2 w-2 rounded-full bg-purple-400"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                  className="h-2 w-2 rounded-full bg-purple-400"
-                />
-              </div>
-              <span className="text-sm">Thinking...</span>
-            </div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className={cn(
-                "prose prose-gray dark:prose-invert max-w-none",
-                "text-sm leading-relaxed"
+          {/* Message Content with AnimatePresence for smooth transitions */}
+          <div className="min-h-[24px]">
+            <AnimatePresence mode="wait">
+              {showLoading && (
+                <motion.div 
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-center gap-3 text-gray-400"
+                >
+                  <div className="flex space-x-1">
+                    <motion.div
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="h-2 w-2 rounded-full bg-purple-400"
+                    />
+                    <motion.div
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      className="h-2 w-2 rounded-full bg-purple-400"
+                    />
+                    <motion.div
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                      className="h-2 w-2 rounded-full bg-purple-400"
+                    />
+                  </div>
+                  <span className="text-sm">Thinking...</span>
+                </motion.div>
               )}
-            >
-              <ScrollArea className="w-full max-h-[300px] overflow-auto pr-3">
-                <p className="whitespace-pre-line">{content}</p>
-              </ScrollArea>
-            </motion.div>
-          )}
+              
+              {showContent && (
+                <motion.div 
+                  key="content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className={cn(
+                    "prose prose-gray dark:prose-invert max-w-none",
+                    "text-sm leading-relaxed"
+                  )}
+                >
+                  <ScrollArea className="w-full max-h-[300px] overflow-auto pr-3">
+                    <p className="whitespace-pre-line">{content}</p>
+                  </ScrollArea>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           
           {/* Optional Children with animation */}
           {children && (
