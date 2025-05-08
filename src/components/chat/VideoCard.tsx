@@ -67,7 +67,7 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-4xl rounded-lg overflow-hidden bg-neutral-950 border border-[#232323]"
+      className="w-full max-w-5xl rounded-lg overflow-hidden bg-gray-950 border border-[#232323]"
     >
       <div className="relative">
         {/* Loading overlay - no AnimatePresence */}
@@ -153,7 +153,6 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
             No animation loaded
           </p>
           <p className="text-sm text-gray-500 mt-3 text-center">
-            Enter a prompt to generate a Manim animation
           </p>
         </div>
       )}

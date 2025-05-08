@@ -9,10 +9,10 @@ interface ChatLayoutProps {
 
 export default function ChatLayout({ children, params }: ChatLayoutProps) {
   return (
-    <div className="flex flex-col h-screen bg-[#121212] overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden">
       {/* Main Content with fixed height and no overflow */}
       <div className="flex-1 h-[calc(100vh-80px)] overflow-hidden px-10 py-6 mt-20">
-        <div className="h-full rounded-lg bg-[#121212] border border-white overflow-hidden">
+        <div className="h-full rounded-2xl overflow-hidden">
           {children}
         </div>
       </div>

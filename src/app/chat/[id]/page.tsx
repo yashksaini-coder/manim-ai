@@ -1,17 +1,13 @@
 "use client";
 
-import { notFound } from 'next/navigation';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
-import { ChatInput } from '@/components/chat/ChatInput';
-import { Code, Video, Play, RefreshCw, ChevronLeft, ArrowDown, ArrowUp } from 'lucide-react';
-import { ChatHeader } from '@/components/chat/ChatHeader';
+import { Code, Play, RefreshCw, ArrowDown } from 'lucide-react';
 import AI_Prompt from '@/components/ai-chat-input';
 import { motion, AnimatePresence } from "motion/react";
-import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Types for our messages
@@ -330,11 +326,11 @@ I'm now rendering this animation for you...`,
   }, [initialPrompt]);
 
   return (
-    <div className="flex flex-col h-full bg-[#0f0f0f]">      
+    <div className="flex flex-col h-full rounded-2xl">      
       {/* Main content */}
-      <div className="flex flex-1 relative overflow-hidden">
+      <div className="flex flex-1 relative rounded-2xl overflow-hidden">
         {/* Left side - Chat area */}
-        <div className="w-2/5 border-r border-[#232323] flex flex-col h-full">
+        <div className="w-2/5 border justify-stretch bg-gray-950 rounded-2xl flex border-spacing-4 mx-4 flex-col h-full">
           {/* Messages container with enhanced scrolling using ScrollArea */}
           <ScrollArea 
             ref={messagesContainerRef}
@@ -452,7 +448,7 @@ I'm now rendering this animation for you...`,
           </AnimatePresence>
           
           {/* Input field - fixed at bottom */}
-          <div className="pt-4 px-6 pb-4 bg-[#0f0f0f]">
+          <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
             <div className="w-full mx-auto">
               <div className="shadow-xl rounded-xl">
                 <AI_Prompt 
@@ -466,8 +462,8 @@ I'm now rendering this animation for you...`,
         </div>
         
         {/* Right side - Video area */}
-        <div className="w-3/5 flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
-          <div className="flex-1 overflow-y-auto p-8">
+        <div className="w-3/5 flex flex-col h-full overflow-hidden bg-zinc-800 rounded-2xl">
+          <div className="flex-1 p-6">
             {/* Processing status indicator */}
             {isProcessing && (
               <div className="mb-6">
@@ -482,44 +478,16 @@ I'm now rendering this animation for you...`,
             {/* Show video if available */}
             {aiResponse?.videoUrl ? (
               <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="w-full max-w-[90%]">
+                <div className="w-full max-w-[90%] flex justify-center">
                   <VideoCard 
                     videoUrl={aiResponse.videoUrl}
                     isLoading={false}
                   />
                 </div>
-                
-                {aiResponse.code && (
-                  <div className="w-full mt-6 p-4 bg-[#131313] rounded-lg border border-[#232323] text-gray-300 max-w-[90%]">
-                    <h3 className="text-lg font-medium mb-2 text-white">Animation Details</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500 mb-1">Animation Type</p>
-                        <p>Square to Circle Transform</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Duration</p>
-                        <p>3.5 seconds</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Resolution</p>
-                        <p>1280 x 720</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Renderer</p>
-                        <p>Cairo</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : !isProcessing && !aiResponse?.error ? (
               // Empty state
               <div className="flex-1 flex flex-col items-center justify-center text-gray-500 min-h-[500px]">
-                <div className="w-full text-2xl font-semibold text-pink-400 mb-8 flex items-center gap-2">
-                  <Video className="h-5 w-5" />
-                  <span>Animation Preview</span>
-                </div>
                 
                 <div className="text-center p-8 border border-dashed border-gray-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
                   <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">

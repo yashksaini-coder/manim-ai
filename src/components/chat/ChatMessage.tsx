@@ -27,7 +27,7 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
         staggerChildren: 0.1
       }}
       className={cn(
-        "group relative w-full rounded-lg transition-all",
+        "group relative w-full rounded-lg bg-gray-950 transition-all",
         role === "user" ? "pl-2" : "pl-2"
       )}
       layout="position"
