@@ -12,7 +12,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 
@@ -270,35 +269,11 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
                                                 className="flex items-center gap-1 h-7 pl-1 pr-2 text-xs rounded-md dark:text-white hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500"
                                                 disabled={isLoading || isDisabled}
                                             >
-                                                <AnimatePresence mode="wait">
-                                                    <motion.div
-                                                        key={selectedModel}
-                                                        initial={{
-                                                            opacity: 0,
-                                                            y: -5,
-                                                        }}
-                                                        animate={{
-                                                            opacity: 1,
-                                                            y: 0,
-                                                        }}
-                                                        exit={{
-                                                            opacity: 0,
-                                                            y: 5,
-                                                        }}
-                                                        transition={{
-                                                            duration: 0.15,
-                                                        }}
-                                                        className="flex items-center gap-1"
-                                                    >
-                                                        {
-                                                            MODEL_ICONS[
-                                                            selectedModel
-                                                            ]
-                                                        }
-                                                        <span className="max-w-[80px] truncate">{selectedModel}</span>
-                                                        <ChevronDown className="w-3 h-3 opacity-50" />
-                                                    </motion.div>
-                                                </AnimatePresence>
+                                                <div className="flex items-center gap-1">
+                                                    {MODEL_ICONS[selectedModel]}
+                                                    <span className="max-w-[80px] truncate">{selectedModel}</span>
+                                                    <ChevronDown className="w-3 h-3 opacity-50" />
+                                                </div>
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
@@ -311,9 +286,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
                                             {AI_MODELS.map((model) => (
                                                 <DropdownMenuItem
                                                     key={model}
-                                                    onSelect={() =>
-                                                        setSelectedModel(model)
-                                                    }
+                                                    onSelect={() => setSelectedModel(model)}
                                                     className="flex items-center justify-between gap-2"
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -322,10 +295,9 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
                                                         )}
                                                         <span>{model}</span>
                                                     </div>
-                                                    {selectedModel ===
-                                                        model && (
-                                                            <Check className="w-4 h-4 text-pink-500" />
-                                                        )}
+                                                    {selectedModel === model && (
+                                                        <Check className="w-4 h-4 text-pink-500" />
+                                                    )}
                                                 </DropdownMenuItem>
                                             ))}
                                         </DropdownMenuContent>
@@ -344,73 +316,55 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
                                         <Paperclip className="w-3.5 h-3.5 transition-colors" />
                                     </label>
                                 </div>
-                                <AnimatePresence mode="wait">
-                                    {isLoading ? (
-                                        <motion.div
-                                            key="loading"
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.8 }}
-                                            className="rounded-lg p-1.5 bg-pink-500 text-white"
+                                {isLoading ? (
+                                    <div
+                                        className="rounded-lg p-1.5 bg-pink-500 text-white"
+                                    >
+                                        <div
+                                            className="w-3.5 h-3.5 animate-spin"
                                         >
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ 
-                                                    duration: 1, 
-                                                    repeat: Infinity, 
-                                                    ease: "linear" 
-                                                }}
-                                                className="w-3.5 h-3.5"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
-                                                    <circle 
-                                                        cx="12" 
-                                                        cy="12" 
-                                                        r="10" 
-                                                        stroke="currentColor" 
-                                                        strokeWidth="4" 
-                                                        strokeOpacity="0.25" 
-                                                    />
-                                                    <path 
-                                                        d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22" 
-                                                        stroke="currentColor" 
-                                                        strokeWidth="4" 
-                                                        strokeLinecap="round" 
-                                                    />
-                                                </svg>
-                                            </motion.div>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.button
-                                            key="send"
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.8 }}
-                                            type="button"
+                                            <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
+                                                <circle 
+                                                    cx="12" 
+                                                    cy="12" 
+                                                    r="10" 
+                                                    stroke="currentColor" 
+                                                    strokeWidth="4" 
+                                                    strokeOpacity="0.25" 
+                                                />
+                                                <path 
+                                                    d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22" 
+                                                    stroke="currentColor" 
+                                                    strokeWidth="4" 
+                                                    strokeLinecap="round" 
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            "rounded-lg p-1.5",
+                                            value.trim() 
+                                                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" 
+                                                : "bg-black/5 dark:bg-[#222]",
+                                            "hover:bg-pink-600 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500 transition-colors"
+                                        )}
+                                        aria-label="Send message"
+                                        disabled={!value.trim() || isLoading || isDisabled}
+                                        onClick={handleSubmitPrompt}
+                                    >
+                                        <ArrowRight
                                             className={cn(
-                                                "rounded-lg p-1.5",
-                                                value.trim() 
-                                                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white" 
-                                                    : "bg-black/5 dark:bg-[#222]",
-                                                "hover:bg-pink-600 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500 transition-colors"
+                                                "w-3.5 h-3.5 transition-opacity duration-200",
+                                                value.trim() && !isLoading && !isDisabled
+                                                    ? "opacity-100"
+                                                    : "opacity-30"
                                             )}
-                                            aria-label="Send message"
-                                            disabled={!value.trim() || isLoading || isDisabled}
-                                            onClick={handleSubmitPrompt}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                        >
-                                            <ArrowRight
-                                                className={cn(
-                                                    "w-3.5 h-3.5 transition-opacity duration-200",
-                                                    value.trim() && !isLoading && !isDisabled
-                                                        ? "opacity-100"
-                                                        : "opacity-30"
-                                                )}
-                                            />
-                                        </motion.button>
-                                    )}
-                                </AnimatePresence>
+                                        />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -418,13 +372,11 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
             </div>
             
             {error && (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                <div 
                     className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs"
                 >
                     {error}
-                </motion.div>
+                </div>
             )}
         </div>
     );

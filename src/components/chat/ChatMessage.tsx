@@ -24,6 +24,7 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
         "group relative w-full rounded-lg transition-all",
         role === "user" ? "pl-2" : "pl-2"
       )}
+      layout="position"
     >
       <div className={cn(
         "flex w-full items-start gap-4 p-4 rounded-lg",
