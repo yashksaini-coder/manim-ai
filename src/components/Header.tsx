@@ -14,7 +14,7 @@ export const Header = () => {
 
 
   return (
-    <header className="fixed top-5 left-10 right-10 z-50 border border-gray-800/30 bg-red-500/10 backdrop-blur-lg rounded-full">
+    <header className="fixed top-5 left-50 right-50 z-50 border border-gray-800/30 bg-red-500/10 backdrop-blur-lg rounded-full">
       <div className="mx-auto max-w-[1400px] flex items-center justify-between h-16 px-4 sm:px-6">
         {/* LOGO */}
         <Link href="/" className="flex items-center gap-2">

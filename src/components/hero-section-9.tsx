@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 import { HoverPeek } from "./ui/link-preview"
 import { DotPattern } from "@/components/ui/dot-pattern-1"
 import { useUser } from '@clerk/nextjs';
@@ -34,7 +34,7 @@ export const HeroSection = () => {
                     <div className="h-[80rem] -translate-y-87.5 absolute left-0 top-0 w-56 -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]" />
                 </div>
 
-                <section className="overflow-hidden bg-white dark:bg-transparent">
+                <section className="overflow-hidden bg-white dark:bg-transparent mt-10">
                     <div className="relative mx-auto max-w-5xl px-6 py-28 lg:py-24">
                         <div className="relative z-10 mx-auto max-w-2xl text-center">
                             <p className="mx-auto my-8 max-w-2xl text-xl">
@@ -53,13 +53,11 @@ export const HeroSection = () => {
                             </p>
                         </div>
                         {/* Centered AIChatInput below hero */}
-                        <div className="flex justify-center">
-                            <div className="w-full items-center justify-center flex flex-col max-w-7xl">
-                                <AIChatInput />
-                            </div>
+                        <div className="flex mt-20 justify-center">
+                            <AIChatInput />
                         </div>
                     </div>
-                    <div className="mx-auto mb-10 max-w-7xl px-6 md:mb-20 xl:px-0">
+                    {/* <div className="mx-auto mb-8 max-w-5xl px-6 md:mb-20 xl:px-0">
                         <div className="relative flex flex-col items-center border border-red-500">
                             <DotPattern width={5} height={5} />
 
@@ -89,91 +87,7 @@ export const HeroSection = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </section>
-                <section className="bg-background relative z-10 py-16">
-                    <div className="m-auto max-w-5xl px-6">
-                        <h2 className="text-center text-lg font-medium">Your favorite companies are our partners.</h2>
-                        <div className="mx-auto mt-20 flex max-w-4xl flex-wrap items-center justify-center gap-x-12 gap-y-8 sm:gap-x-16 sm:gap-y-12">
-                            <img
-                                className="h-5 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/nvidia.svg"
-                                alt="Nvidia Logo"
-                                height="20"
-                                width="auto"
-                            />
-                            <img
-                                className="h-4 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/column.svg"
-                                alt="Column Logo"
-                                height="16"
-                                width="auto"
-                            />
-                            <img
-                                className="h-4 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/github.svg"
-                                alt="GitHub Logo"
-                                height="16"
-                                width="auto"
-                            />
-                            <img
-                                className="h-5 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/nike.svg"
-                                alt="Nike Logo"
-                                height="20"
-                                width="auto"
-                            />
-                            <img
-                                className="h-4 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/laravel.svg"
-                                alt="Laravel Logo"
-                                height="16"
-                                width="auto"
-                            />
-                            <img
-                                className="h-7 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/lilly.svg"
-                                alt="Lilly Logo"
-                                height="28"
-                                width="auto"
-                            />
-                            <img
-                                className="h-5 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/lemonsqueezy.svg"
-                                alt="Lemon Squeezy Logo"
-                                height="20"
-                                width="auto"
-                            />
-                            <img
-                                className="h-6 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/openai.svg"
-                                alt="OpenAI Logo"
-                                height="24"
-                                width="auto"
-                            />
-                            <img
-                                className="h-4 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/tailwindcss.svg"
-                                alt="Tailwind CSS Logo"
-                                height="16"
-                                width="auto"
-                            />
-                            <img
-                                className="h-5 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/vercel.svg"
-                                alt="Vercel Logo"
-                                height="20"
-                                width="auto"
-                            />
-                            <img
-                                className="h-5 w-fit dark:invert"
-                                src="https://html.tailus.io/blocks/customers/zapier.svg"
-                                alt="Zapier Logo"
-                                height="20"
-                                width="auto"
-                            />
-                        </div>
-                    </div>
+                    </div> */}
                 </section>
             </main>
         </div>

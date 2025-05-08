@@ -48,13 +48,19 @@ const OPENAI_SVG = (
     </div>
 );
 
+const GROQ_SVG = (
+    <div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 201 201"><path fill="#F54F35" d="M0 0h201v201H0V0Z" /><path fill="#FEFBFB" d="m128 49 1.895 1.52C136.336 56.288 140.602 64.49 142 73c.097 1.823.148 3.648.161 5.474l.03 3.247.012 3.482.017 3.613c.01 2.522.016 5.044.02 7.565.01 3.84.041 7.68.072 11.521.007 2.455.012 4.91.016 7.364l.038 3.457c-.033 11.717-3.373 21.83-11.475 30.547-4.552 4.23-9.148 7.372-14.891 9.73l-2.387 1.055c-9.275 3.355-20.3 2.397-29.379-1.13-5.016-2.38-9.156-5.17-13.234-8.925 3.678-4.526 7.41-8.394 12-12l3.063 2.375c5.572 3.958 11.135 5.211 17.937 4.625 6.96-1.384 12.455-4.502 17-10 4.174-6.784 4.59-12.222 4.531-20.094l.012-3.473c.003-2.414-.005-4.827-.022-7.241-.02-3.68 0-7.36.026-11.04-.003-2.353-.008-4.705-.016-7.058l.025-3.312c-.098-7.996-1.732-13.21-6.681-19.47-6.786-5.458-13.105-8.211-21.914-7.792-7.327 1.188-13.278 4.7-17.777 10.601C75.472 72.012 73.86 78.07 75 85c2.191 7.547 5.019 13.948 12 18 5.848 3.061 10.892 3.523 17.438 3.688l2.794.103c2.256.082 4.512.147 6.768.209v16c-16.682.673-29.615.654-42.852-10.848-8.28-8.296-13.338-19.55-13.71-31.277.394-9.87 3.93-17.894 9.562-25.875l1.688-2.563C84.698 35.563 110.05 34.436 128 49Z" /></svg>
+    </div>
+);
+
 export default function AI_Prompt() {
     const [value, setValue] = useState("");
     const { textareaRef, adjustHeight } = useAutoResizeTextarea({
         minHeight: 72,
         maxHeight: 300,
     });
-    const [selectedModel, setSelectedModel] = useState("GPT-4-1 Mini");
+    const [selectedModel, setSelectedModel] = useState("llama-3.1-70b-versatile");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -62,16 +68,22 @@ export default function AI_Prompt() {
     const [videoUrl, setVideoUrl] = useState("");
     const [code, setCode] = useState("");
     const [query, setQuery] = useState("");
-    
+
     const AI_MODELS = [
-        "o3-mini",
-        "Gemini 2.5 Flash",
-        "Claude 3.5 Sonnet",
-        "GPT-4-1 Mini",
-        "GPT-4-1",
+        "llama-3.1-70b-versatile",
+        "llama-3.1-8b-instant",
+        "gemma-2-9b-it",
+        // "o3-mini",
+        // "Gemini 2.5 Flash",
+        // "Claude 3.5 Sonnet",
+        // "GPT-4-1 Mini",
+        // "GPT-4-1",
     ];
 
     const MODEL_ICONS: Record<string, React.ReactNode> = {
+        "llama-3.1-70b-versatile": GROQ_SVG,
+        "llama-3.1-8b-instant": GROQ_SVG,
+        "gemma-2-9b-it": GROQ_SVG,
         "o3-mini": OPENAI_SVG,
         "Gemini 2.5 Flash": (
             <svg
@@ -142,16 +154,16 @@ export default function AI_Prompt() {
 
     const cleaner = (code: string) => {
         return code.replace(/```python/g, "").replace(/```/g, "");
-      };
+    };
 
     const handleSubmitPrompt = async () => {
 
         if (!value.trim()) return;
-        
+
         setIsLoading(true);
         // Generate a unique chat ID
         const chatId = uuidv4();
-        
+
         setLoading(true);
         setError("");
         setVideoUrl("");
@@ -163,44 +175,44 @@ export default function AI_Prompt() {
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         prompt: query,
                         model: selectedModel,
-                     }),
-            }
-        );
-        const codeData = await codeRes.json();
-        const cleanedCode = cleaner(codeData.code);
-        setCode(cleanedCode);
-        
-        // 2. Generate video from cleaned code
-        const videoRes = await fetch(
-            `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    code: cleanedCode,
-                    file_name: "GenScene.py",
-                    file_class: "GenScene",
-                    iteration: Math.floor(Math.random() * 1000000),
-                    project_name: "GenScene",
-                }),
-            }
-        );
-          const videoData = await videoRes.json();
-          setVideoUrl(videoData.video_url);
+                    }),
+                }
+            );
+            const codeData = await codeRes.json();
+            const cleanedCode = cleaner(codeData.code);
+            setCode(cleanedCode);
+
+            // 2. Generate video from cleaned code
+            const videoRes = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        code: cleanedCode,
+                        file_name: "GenScene.py",
+                        file_class: "GenScene",
+                        iteration: Math.floor(Math.random() * 1000000),
+                        project_name: "GenScene",
+                    }),
+                }
+            );
+            const videoData = await videoRes.json();
+            setVideoUrl(videoData.video_url);
         } catch (err) {
-          setError("Failed to generate video. Please try again.");
+            setError("Failed to generate video. Please try again.");
         } finally {
             setLoading(false);
         }
         // Redirect to the chat page with the prompt as a query parameter
         router.push(`/chat/${chatId}`);
     };
-    
-    
-    
+
+
+
     return (
         <div className="w-full max-w-2xl mx-auto py-4">
             <div className="bg-black/5 dark:bg-white/5 rounded-2xl">
@@ -258,7 +270,7 @@ export default function AI_Prompt() {
                                                     >
                                                         {
                                                             MODEL_ICONS[
-                                                                selectedModel
+                                                            selectedModel
                                                             ]
                                                         }
                                                         {selectedModel}
@@ -290,8 +302,8 @@ export default function AI_Prompt() {
                                                     </div>
                                                     {selectedModel ===
                                                         model && (
-                                                        <Check className="w-4 h-4 text-blue-500" />
-                                                    )}
+                                                            <Check className="w-4 h-4 text-blue-500" />
+                                                        )}
                                                 </DropdownMenuItem>
                                             ))}
                                         </DropdownMenuContent>
