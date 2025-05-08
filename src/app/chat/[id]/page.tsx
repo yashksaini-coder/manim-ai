@@ -7,11 +7,12 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { Code, Video, Play, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Code, Video, Play, RefreshCw, ChevronLeft, ArrowDown, ArrowUp } from 'lucide-react';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import AI_Prompt from '@/components/ai-chat-input';
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Types for our messages
 interface Message {
@@ -50,6 +51,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   
   const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
   
@@ -157,30 +159,92 @@ I'm now rendering this animation for you...`,
     };
   }, [initialPrompt]);
   
-  // Scroll to bottom of messages with improved behavior
+  // Enhanced scroll behavior with better detection
   useEffect(() => {
     if (!messagesContainerRef.current) return;
     
-    const container = messagesContainerRef.current;
-    const { scrollHeight, offsetHeight, scrollTop } = container;
+    // When using shadcn ScrollArea, we need to access the scrollable element differently
+    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollAreaElement) return;
     
-    // Check if user is already at the bottom (or close to it)
-    const isNearBottom = scrollHeight <= scrollTop + offsetHeight + 100;
+    const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
+    
+    // More precise check if user is at the bottom (within 150px)
+    const isNearBottom = scrollHeight <= scrollTop + clientHeight + 150;
     
     if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Use a small timeout to ensure DOM has updated
+      setTimeout(() => {
+        (scrollAreaElement as HTMLDivElement).scrollTo({
+          top: scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+      
       setShowScrollButton(false);
-    } else {
-      // User has scrolled up to read earlier messages
+    } else if (messages.length > 0) {
+      // Only show scroll button if we have messages and user has scrolled up
       setShowScrollButton(true);
     }
   }, [messages]);
   
-  // Handle scroll button click
+  // Smoother scroll to bottom with easing
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesContainerRef.current) return;
+    
+    // Get the actual scrollable viewport from shadcn ScrollArea
+    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollAreaElement) return;
+    
+    const scrollHeight = (scrollAreaElement as HTMLDivElement).scrollHeight;
+    
+    (scrollAreaElement as HTMLDivElement).scrollTo({
+      top: scrollHeight,
+      behavior: 'smooth'
+    });
+    
     setShowScrollButton(false);
   };
+  
+  // Scroll to top for long conversations
+  const scrollToTop = () => {
+    if (!messagesContainerRef.current) return;
+    
+    // Get the actual scrollable viewport from shadcn ScrollArea
+    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollAreaElement) return;
+    
+    (scrollAreaElement as HTMLDivElement).scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+  
+  // Add scroll listener to handle both scroll buttons
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+    
+    // Get the actual scrollable viewport from shadcn ScrollArea
+    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollAreaElement) return;
+    
+    const handleScroll = () => {
+      const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
+      
+      // Show/hide bottom scroll button based on position
+      if (scrollHeight <= scrollTop + clientHeight + 150) {
+        setShowScrollButton(false);
+      } else if (messages.length > 0) {
+        setShowScrollButton(true);
+      }
+      
+      // Show top scroll button only when scrolled down significantly
+      setShowScrollTopButton(scrollTop > 300);
+    };
+    
+    scrollAreaElement.addEventListener('scroll', handleScroll);
+    return () => scrollAreaElement.removeEventListener('scroll', handleScroll);
+  }, [messages.length]);
   
   const updateRenderProgress = () => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
@@ -248,66 +312,144 @@ I'm now rendering this animation for you...`,
     router.push('/');
   };
 
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      // Find the scroll viewport and scroll to the messages end
+      const scrollToView = () => {
+        if (!messagesContainerRef.current) return;
+        
+        const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (!scrollAreaElement) return;
+        
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+      
+      // Small delay to ensure DOM is updated
+      setTimeout(scrollToView, 100);
+    }
+  }, [initialPrompt]);
+
   return (
     <div className="flex flex-col h-full bg-[#0f0f0f]">      
       {/* Main content */}
       <div className="flex flex-1 relative overflow-hidden">
         {/* Left side - Chat area */}
         <div className="w-2/5 border-r border-[#232323] flex flex-col h-full">
-          {/* Messages container with fixed height and scrolling */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin relative" ref={messagesContainerRef}>
+          {/* Messages container with enhanced scrolling using ScrollArea */}
+          <ScrollArea 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-hidden relative"
+            scrollHideDelay={100}
+            type="always"
+          >
             <div className="py-4 space-y-4">
               <div className="space-y-4 mx-auto max-w-[95%]">
-                {/* Messages */}
-                {messages.map((message) => (
-                  <div key={message.id}>
-                    <ChatMessage 
-                      content={message.content} 
-                      role={message.role}
-                      isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
-                    />
-                  </div>
-                ))}
+                {/* Messages with AnimatePresence for better transitions */}
+                <AnimatePresence initial={false}>
+                  {messages.map((message) => (
+                    <motion.div 
+                      key={message.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ 
+                        duration: 0.4,
+                        ease: [0.25, 0.1, 0.25, 1.0]
+                      }}
+                    >
+                      <ChatMessage 
+                        content={message.content} 
+                        role={message.role}
+                        isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 
                 {/* AI is responding - show loading indicator if no messages yet */}
-                {isProcessing && messages.length === 0 && (
-                  <div>
-                    <ChatMessage 
-                      content="" 
-                      role="ai" 
-                      isLoading={true} 
-                    />
-                  </div>
-                )}
+                <AnimatePresence>
+                  {isProcessing && messages.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ChatMessage 
+                        content="" 
+                        role="ai" 
+                        isLoading={true} 
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 
                 {/* Show code block if available */}
-                {aiResponse?.code && (
-                  <div 
-                    className="mt-6 relative mx-4"
-                  >
-                    <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
-                      <Code className="h-4 w-4" />
-                      <span>Generated Python Code</span>
-                    </div>
-                    <ChatCodeBlock code={aiResponse.code} />
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
+                <AnimatePresence>
+                  {aiResponse?.code && (
+                    <motion.div 
+                      className="mt-6 relative mx-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.2 }}
+                    >
+                      <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
+                        <Code className="h-4 w-4" />
+                        <span>Generated Python Code</span>
+                      </div>
+                      <ChatCodeBlock code={aiResponse.code} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div ref={messagesEndRef} className="h-px" />
               </div>
             </div>
-          </div>
+          </ScrollArea>
           
-          {/* New message button */}
-          {showScrollButton && (
-            <div className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10">
-              <button 
-                onClick={scrollToBottom}
-                className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+          {/* Scroll to top button
+          <AnimatePresence>
+            {showScrollTopButton && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                className="fixed top-24 left-[20%] transform -translate-x-1/2 z-10"
               >
-                New message ↓
-              </button>
-            </div>
-          )}
+                <motion.button 
+                  onClick={scrollToTop}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+                >
+                  <ArrowUp className="h-4 w-4" /> Top
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+           */}
+          
+          {/* New message button with enhanced animation */}
+          <AnimatePresence>
+            {showScrollButton && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10"
+              >
+                <motion.button 
+                  onClick={scrollToBottom}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
+                >
+                  <ArrowDown className="h-4 w-4" /> New message
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           {/* Input field - fixed at bottom */}
           <div className="pt-4 px-6 pb-4 bg-[#0f0f0f]">
