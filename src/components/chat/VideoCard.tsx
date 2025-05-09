@@ -67,7 +67,7 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-5xl rounded-lg overflow-hidden bg-gray-950 border border-[#232323]"
+      className="w-full rounded-lg overflow-hidden bg-gray-950 border border-[#232323]"
     >
       <div className="relative">
         {/* Loading overlay - no AnimatePresence */}
@@ -109,10 +109,10 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
         {/* Video */}
         <video
           ref={videoRef}
-          src={videoUrl}
+          src={videoUrl || ""}
           controls
           autoPlay
-          className="w-full h-full object-contain bg-black rounded-lg"
+          className="w-full h-full bg-black rounded-lg"
         >
           Your browser does not support the video tag.
         </video>

@@ -565,7 +565,7 @@ I'm now rendering this animation for you...`,
               <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="w-full max-w-[90%] flex justify-center">
                   <VideoCard 
-                    videoUrl={aiResponse.videoUrl}
+                    videoUrl={aiResponse.videoUrl || ""}
                     isLoading={false}
                   />
                 </div>
