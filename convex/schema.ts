@@ -13,13 +13,32 @@ export default defineSchema({
 
     videos: defineTable({
         clerkId: v.string(),
-        projectName: v.string(),
-        iteration: v.number(),
         videoUrl: v.string(),
-        fileName: v.optional(v.string()),
-        fileClass: v.optional(v.string()),
-        aspectRatio: v.optional(v.string()),
+        code: v.string(),
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_clerkId", ["clerkId"]),
+    
+    messages: defineTable({
+        clerkId: v.string(),
+        sessionId: v.string(),
+        videoId: v.optional(v.string()),
+        role: v.string(), // "user" or "ai"
+        content: v.string(),
+        timestamp: v.string(),
+    }).index("by_clerkId", ["clerkId"])
+      .index("by_sessionId", ["sessionId"])
+      .index("by_clerkId_and_sessionId", ["clerkId", "sessionId"]),
+      
+    sessions: defineTable({
+        clerkId: v.string(),
+        sessionId: v.string(),
+        title: v.string(),
+        prompt: v.string(),
+        videoId: v.optional(v.string()),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+        isActive: v.boolean(),
+    }).index("by_clerkId", ["clerkId"])
+      .index("by_sessionId", ["sessionId"]),
 });

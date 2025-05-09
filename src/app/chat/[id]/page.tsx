@@ -11,8 +11,24 @@ import ChatPageInput from "@/components/chat/chat-page-input";
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cacheManager } from "@/lib/api-helpers";
-// import { useUser } from '@clerk/nextjs';
-// Types for our messages
+import { useUser } from "@clerk/nextjs";
+import { useQuery, useMutation } from "convex/react";
+// Temporarily comment out the problematic import to fix the immediate error
+// We need to find the correct path to the Convex API
+import { api } from "../../../../convex/_generated/api";
+// Until the correct path is found, we'll use any imports conditionally
+// and add fallbacks for when Convex operations fail
+
+// Import the API client functions
+import {
+  createSession,
+  getSession,
+  getMessages,
+  createMessage,
+  updateSessionWithVideo,
+  createVideo
+} from "@/lib/api-client";
+
 interface Message {
   id: string;
   role: "user" | "ai";
@@ -138,22 +154,77 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   };
 
+  // Get the current user from Clerk
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const clerkId = user?.id;
+  
+  // Comment out all Convex related hooks that depend on the api import
+  /*
+  const session = useQuery(api.sessions.getSessionById, 
+    clerkId && chatId.startsWith("session_") 
+      ? { sessionId: chatId, clerkId } 
+      : "skip"
+  );
+  
+  // Get messages for this session from Convex
+  const sessionMessages = useQuery(api.messages.getMessagesBySessionId,
+    clerkId && chatId.startsWith("session_")
+      ? { sessionId: chatId, clerkId }
+      : "skip"
+  );
+  
+  // Convex mutations for storing data
+  const createSession = useMutation(api.sessions.createSession);
+  const createMessage = useMutation(api.messages.createMessage);
+  const updateSessionWithVideo = useMutation(api.sessions.updateSessionWithVideo);
+  */
+
   // Process a user message with API calls
   const processUserMessage = useCallback(
     async (prompt: string, model?: string) => {
       // Generate a unique request ID based on prompt and model to prevent duplicate calls
       const requestId = `${prompt}_${model || "default"}`;
-
+      
       // Don't make API calls if we've already sent the initial request
       if (isInitialRequestSent && initialPrompt === prompt) {
         console.log("Skipping duplicate API call for initial prompt");
         return;
       }
-
+      
       setProcessingStage(ProcessingStage.GeneratingCode);
       setStatus("generating");
-
+      
       try {
+        // Store user message in database if the user is signed in
+        let currentSessionId = chatId;
+        
+        if (clerkId && isUserLoaded) {
+          // If this is not a session ID yet, create a new session
+          if (!chatId.startsWith("session_")) {
+            try {
+              const sessionResponse = await createSession(clerkId, prompt);
+              
+              // Update URL with the new session ID without reload
+              if (sessionResponse && sessionResponse.sessionId) {
+                currentSessionId = sessionResponse.sessionId;
+                console.log("Created new session:", currentSessionId);
+                router.push(`/chat/${currentSessionId}`);
+              } else {
+                console.error("Session creation failed or returned unexpected format");
+              }
+            } catch (err) {
+              console.error("Error creating session:", err);
+            }
+          }
+          
+          // Save the user message
+          try {
+            await createMessage(clerkId, currentSessionId, "user", prompt);
+          } catch (messageError) {
+            console.error("Error saving message:", messageError);
+          }
+        }
+        
         // Check cached data first - only for exact prompt matches
         const cachedData = cacheManager.getCachedData(chatId);
         if (
@@ -166,66 +237,103 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           setVideoUrl(cachedData.videoUrl);
           setStatus("complete");
           setProcessingStage(ProcessingStage.Complete);
-
+          
           return;
         }
-
+        
         // Store the prompt in cache
         cacheManager.storePrompt(chatId, prompt);
-
+        
         // Determine which model to use - prioritize the explicit model parameter
         const modelToUse = model || cachedData.model || "gemma-2-9b-it";
-
+        
         // Store the model
         cacheManager.storeModel(chatId, modelToUse);
-
+        
         // Step 1: Generate code
         const generatedCode = await generateCode(prompt, modelToUse);
         if (!generatedCode) {
           throw new Error("Failed to generate code");
         }
-
-        // Add AI response to chat about the generated code
-        const aiMessage: Message = {
-          id: `ai-${Date.now()}`,
-          role: "ai",
-          content: `I've created a Manim animation based on your prompt: "${prompt}". `,
-          timestamp: new Date(),
-        };
-
-        // setMessages((prev) => [...prev, aiMessage]);
+        
+        // Store code content
         setCodeContent(generatedCode);
         setStatus("rendering");
-
+        
+        // If user is signed in, store AI message with the code
+        if (clerkId && isUserLoaded) {
+          await createMessage(
+            clerkId,
+            currentSessionId,
+            "ai",
+            `I've created a Manim animation based on your prompt: "${prompt}". Here's the code.`
+          );
+        }
+        
         // Cache the generated code
         cacheManager.storeCode(chatId, generatedCode);
-
+        
         // Step 2: Start rendering animation
         setProcessingStage(ProcessingStage.RenderingAnimation);
-
+        
         // Step 3: Render animation using API
         const videoUrl = await renderAnimation(generatedCode);
-
+        
         // Clear any pending timeouts
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
-
+        
         // Set render progress to 100% when complete
         setRenderProgress(100);
-
+        
         // Cache the video URL
         cacheManager.storeVideo(chatId, videoUrl);
-
-        // Update with the video URL once rendering is complete
+        
+        // Update state with video URL
         setVideoUrl(videoUrl);
         setStatus("complete");
+        
+        // Store video URL in database if user is signed in
+        if (clerkId && isUserLoaded) {
+          try {
+            // First, create a video record
+            const videoData = await createVideo(clerkId, videoUrl, generatedCode);
+            
+            // Then link it to the session
+            if (videoData && videoData.videoId) {
+              await updateSessionWithVideo(clerkId, currentSessionId, videoData.videoId);
+            }
+            
+            // Add final AI message confirming the video is ready
+            await createMessage(
+              clerkId,
+              currentSessionId,
+              "ai",
+              "Your animation is ready!",
+              videoData.videoId
+            );
+          } catch (error) {
+            console.error("Error storing video:", error);
+          }
+        }
+        
         setProcessingStage(ProcessingStage.Complete);
       } catch (error) {
         console.error("Error processing request:", error);
         setError("Failed to generate or render animation. Please try again.");
         setStatus("error");
         setProcessingStage(ProcessingStage.Error);
+        
+        // Store error message in database if user is signed in
+        if (clerkId && isUserLoaded) {
+          await createMessage(
+            clerkId,
+            chatId,
+            "ai",
+            "Error: Failed to generate or render animation. Please try again."
+          );
+        }
       } finally {
         // Mark that we've made the initial API call
         if (initialPrompt === prompt) {
@@ -233,7 +341,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         }
       }
     },
-    [initialPrompt, isInitialRequestSent, chatId]
+    [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]
   );
 
   // Use memoized dependencies to prevent useEffect dependency issues
@@ -352,39 +460,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     };
   }, [messages]);
 
-  // // Smoother scroll to bottom with easing
-  // const scrollToBottom = useCallback(() => {
-  //   if (!messagesContainerRef.current) return;
-
-  //   // Get the actual scrollable viewport from shadcn ScrollArea
-  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-  //   if (!scrollAreaElement) return;
-
-  //   const scrollHeight = (scrollAreaElement as HTMLDivElement).scrollHeight;
-
-  //   (scrollAreaElement as HTMLDivElement).scrollTo({
-  //     top: scrollHeight,
-  //     behavior: 'smooth'
-  //   });
-
-  //   setShowScrollButton(false);
-  // }, []);
-
-  // // Scroll to top for long conversations
-  // const scrollToTop = useCallback(() => {
-  //   if (!messagesContainerRef.current) return;
-
-  //   // Get the actual scrollable viewport from shadcn ScrollArea
-  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-  //   if (!scrollAreaElement) return;
-
-  //   (scrollAreaElement as HTMLDivElement).scrollTo({
-  //     top: 0,
-  //     behavior: 'smooth'
-  //   });
-  // }, []);
-
-  // // Update render progress with memoized function
+  // Update render progress with memoized function
   const updateRenderProgress = useCallback(() => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
       const newProgress = renderProgress + Math.random() * 10;
@@ -408,7 +484,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const handleSendMessage = useCallback(
     async (message: string, model?: string) => {
       if (!message.trim()) return;
-
+      
       // 1. Add user message
       const userMessage: Message = {
         id: `user-${Date.now()}`,
@@ -417,7 +493,16 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
-
+      
+      // Save message to database if user is signed in
+      if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
+        try {
+          await createMessage(clerkId, chatId, "user", message);
+        } catch (error) {
+          console.error("Error saving message:", error);
+        }
+      }
+      
       // 2. Add AI message: Generating code...
       const aiMsgId = `ai-${Date.now()}`;
       const aiMessage: Message = {
@@ -442,6 +527,16 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         setCodeContent(code);
         setStatus("rendering");
 
+        // Save AI message with code
+        if (clerkId && isUserLoaded) {
+          await createMessage(
+            clerkId,
+            chatId,
+            "ai",
+            "Rendering animation..."
+          );
+        }
+
         // 4. Update AI message: Rendering animation...
         setMessages((prev) =>
           prev.map((msg) =>
@@ -457,6 +552,22 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         console.log(videoUrl);
         setVideoUrl(videoUrl);
         setStatus("complete");
+
+        // Store the video information
+        if (clerkId && isUserLoaded) {
+          try {
+            // First, create a video record
+            const videoData = await createVideo(clerkId, videoUrl, code);
+            
+            // Then link it to the session
+            if (videoData && videoData.videoId) {
+              await updateSessionWithVideo(clerkId, chatId, videoData.videoId);
+            }
+          } catch (error) {
+            console.error("Error storing video:", error);
+          }
+        }
+
         // 6. Update AI message: Here's your animation!
         setMessages((prev) =>
           prev.map((msg) =>
@@ -465,7 +576,17 @@ export default function ChatPage({ params }: { params: { id: string } }) {
               : msg
           )
         );
-        setStatus("complete");
+
+        // Save final AI message
+        if (clerkId && isUserLoaded) {
+          await createMessage(
+            clerkId,
+            chatId,
+            "ai",
+            "Here's your animation!"
+          );
+        }
+
         setProcessingStage(ProcessingStage.Complete);
       } catch (err) {
         setError("Failed to generate or render animation.");
@@ -476,11 +597,22 @@ export default function ChatPage({ params }: { params: { id: string } }) {
               : msg
           )
         );
+        
+        // Save error message
+        if (clerkId && isUserLoaded) {
+          await createMessage(
+            clerkId,
+            chatId,
+            "ai",
+            "Error: Failed to generate or render animation. Please try again."
+          );
+        }
+        
         setStatus("error");
         setProcessingStage(ProcessingStage.Error);
       }
     },
-    []
+    [clerkId, isUserLoaded, chatId]
   );
 
   // Get status message based on current processing stage
@@ -533,6 +665,32 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       return () => clearTimeout(scrollTimeout);
     }
   }, [messages]);
+
+  // Effect to load messages when session data is available
+  useEffect(() => {
+    const loadSessionMessages = async () => {
+      if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
+        try {
+          const messagesData = await getMessages(clerkId, chatId);
+          if (messagesData && Array.isArray(messagesData) && messagesData.length > 0) {
+            // Format messages from API to our Message format
+            const formattedMessages = messagesData.map((msg) => ({
+              id: msg._id || `msg-${Date.now()}-${Math.random()}`,
+              role: msg.role as "user" | "ai",
+              content: msg.content,
+              timestamp: new Date(msg.timestamp)
+            }));
+            
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error("Error loading messages:", error);
+        }
+      }
+    };
+
+    loadSessionMessages();
+  }, [clerkId, isUserLoaded, chatId]);
 
   useEffect(() => {
     console.log("aiResponse updated:", { videoUrl, codeContent, error, status });
@@ -633,50 +791,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                         )}
                     </AnimatePresence>
 
-                    {/* Show code block if available */}
-                    {/* <AnimatePresence>
-                      {aiResponse?.code && (
-                        <motion.div
-                          className="mt-6 relative mx-4"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: 0.2 }}
-                        >
-                          <div className="absolute -top-6 left-0 flex items-center gap-2 text-pink-400 text-sm font-medium">
-                            <Code className="h-4 w-4" />
-                            <span>Generated Python Code</span>
-                          </div>
-                          <ChatCodeBlock code={aiResponse.code} />
-                        </motion.div>
-                      )}
-                    </AnimatePresence> */}
                     <div ref={messagesEndRef} className="h-px" />
                   </div>
                 </div>
               </ScrollArea>
 
-              {/* New message button with enhanced animation */}
-              {/* <AnimatePresence>
-                {showScrollButton && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed bottom-24 left-[20%] transform -translate-x-1/2 z-10"
-                  >
-                    <motion.button 
-                      onClick={scrollToBottom}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
-                    >
-                      <ArrowDown className="h-4 w-4" /> New message
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-               */}
               {/* Input field - fixed at bottom - show only when page is loaded */}
               {!pageLoading && (
                 <div className="w-full mx-auto">

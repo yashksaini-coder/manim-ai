@@ -5,12 +5,8 @@ import { v } from "convex/values";
 export const createVideo = mutation({
   args: {
     clerkId: v.string(),
-    projectName: v.string(),
-    iteration: v.number(),
     videoUrl: v.string(),
-    fileName: v.optional(v.string()),
-    fileClass: v.optional(v.string()),
-    aspectRatio: v.optional(v.string()),
+    code: v.string(),
   },
   handler: async (ctx, args) => {
     const videoId = await ctx.db.insert("videos", {
