@@ -738,8 +738,7 @@ I'm now rendering this animation for you...`,
                         <div className="w-full flex justify-center">
                           <VideoCard
                             videoUrl={
-                              aiResponse?.videoUrl ||
-                              "https://manima.blr1.digitaloceanspaces.com/manima/video-0069eb5d-36f7-45b0-b165-613e49ad39c9-GenScene-148355.mp4"
+                              aiResponse?.videoUrl || ""
                             }
                             isLoading={false}
                           />
