@@ -5,6 +5,8 @@ import { ReactNode, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useUser } from "@clerk/nextjs";
 
 type MessageRole = "user" | "ai";
 
@@ -15,10 +17,18 @@ interface ChatMessageProps {
   children?: ReactNode;
 }
 
-export function ChatMessage({ content, role, isLoading = false, children }: ChatMessageProps) {
+export function ChatMessage({
+  content,
+  role,
+  isLoading = false,
+  children,
+}: ChatMessageProps) {
   // Add state to control fading between loading and content
+  const { user } = useUser();
   const [showLoading, setShowLoading] = useState(isLoading);
-  const [showContent, setShowContent] = useState(!isLoading && content.length > 0);
+  const [showContent, setShowContent] = useState(
+    !isLoading && content.length > 0
+  );
 
   // Handle transitions between loading and content states
   useEffect(() => {
@@ -48,7 +58,7 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
       transition={{
         duration: 0.4,
         ease: [0.25, 0.1, 0.25, 1.0],
-        staggerChildren: 0.1
+        staggerChildren: 0.1,
       }}
       className={cn(
         "group relative w-full rounded-lg bg-background transition-all",
@@ -57,51 +67,22 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
     >
       <div
         className={cn(
-          // Use items-center for vertical alignment of avatar and text
           "flex w-full items-center gap-3 px-4 py-2 rounded-lg",
-          role === "user" ? "bg-gray-800/30" : "bg-gray-800/10"
+          role === "user" ? "bg-secondary/30" : "bg-secondary/10"
         )}
       >
-        {/* Avatar with animation */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className={cn(
-            // Center avatar content and ensure perfect circle
-            "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full",
-            role === "user"
-              ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600"
-              : "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-600"
-          )}
-          style={{
-            // Add a little margin to separate from text
-            marginRight: "0.75rem"
-          }}
-        >
-          {role === "user" ? (
-            <User className="h-5 w-5 text-white" />
-          ) : (
-            <Bot className="h-5 w-5 text-white" />
-          )}
-        </motion.div>
+        <Avatar>
+          <AvatarImage src={user?.imageUrl} />
+          <AvatarFallback>
+            {role === "user" ? (
+              <User className="h-5 w-5 " />
+            ) : (
+              <Bot className="h-5 w-5" />
+            )}
+          </AvatarFallback>
+        </Avatar>
 
         <div className="flex-1 space-y-2">
-          {/* Role Label with animation */}
-          <motion.div
-            initial={{ opacity: 0, x: -5 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="flex items-center gap-2"
-          >
-            {/* <span className={cn(
-              "text-xs font-medium",
-              role === "user" ? "text-blue-400" : "text-purple-400"
-            )}>
-              {role === "user" ? "You" : "Manim AI"}
-            </span> */}
-          </motion.div>
-
           {/* Message Content with AnimatePresence for smooth transitions */}
           <div className="min-h-[24px]">
             <AnimatePresence mode="wait">
@@ -112,7 +93,7 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="flex items-center gap-3 text-gray-400"
+                  className="flex items-center gap-3 text-stone-400"
                 >
                   <div className="flex space-x-1">
                     <motion.div
@@ -122,12 +103,20 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
                     />
                     <motion.div
                       animate={{ opacity: [0.4, 1, 0.4] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: 0.2,
+                      }}
                       className="h-2 w-2 rounded-full bg-purple-400"
                     />
                     <motion.div
                       animate={{ opacity: [0.4, 1, 0.4] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: 0.4,
+                      }}
                       className="h-2 w-2 rounded-full bg-purple-400"
                     />
                   </div>
@@ -143,7 +132,7 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                   className={cn(
-                    "prose prose-gray dark:prose-invert max-w-none",
+                    "prose prose-stone dark:prose-invert max-w-none",
                     "text-sm leading-relaxed"
                   )}
                 >

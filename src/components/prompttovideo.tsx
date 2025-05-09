@@ -58,11 +58,11 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 text-slate-200">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-stone-950 text-slate-200">
       <form onSubmit={handleSubmit} className="w-full max-w-md flex flex-col gap-4 items-center">
         <input
           type="text"
-          className="w-full px-4 py-2 rounded bg-gray-800 text-slate-200 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="w-full px-4 py-2 rounded bg-stone-800 text-slate-200 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           placeholder="Enter your query..."
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -77,7 +77,7 @@ export default function Home() {
       </form>
       {error && <div className="text-red-400 mt-4">{error}</div>}
       {code && (
-        <div className="mt-6 w-full max-w-xl bg-gray-900 rounded-lg p-4 text-xs text-left overflow-x-auto">
+        <div className="mt-6 w-full max-w-xl bg-stone-900 rounded-lg p-4 text-xs text-left overflow-x-auto">
           <div className="mb-2 text-purple-400 font-bold">Generated Code:</div>
           <pre>{code}</pre>
         </div>

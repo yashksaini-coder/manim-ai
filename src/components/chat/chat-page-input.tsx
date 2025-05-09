@@ -212,7 +212,7 @@ export default function ChatPageInput({
                     className={cn(
                       "rounded-lg p-1.5 bg-black/5 dark:bg-[#222] cursor-pointer",
                       "hover:bg-black/10 dark:hover:bg-[#2a2a2a] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500",
-                      "text-black/40 dark:text-gray-400 hover:text-black dark:hover:text-white",
+                      "text-black/40 dark:text-stone-400 hover:text-black dark:hover:text-white",
                       (isLoading || isDisabled) &&
                         "opacity-50 pointer-events-none"
                     )}

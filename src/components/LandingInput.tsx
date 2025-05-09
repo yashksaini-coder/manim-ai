@@ -243,7 +243,7 @@ export default function LandingInput({prompt, onSend, isDisabled}: {
                                 value={value}
                                 placeholder={"What animation would you like to create?"}
                                 className={cn(
-                                    "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-[#222] border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-gray-400 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                                    "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-[#222] border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-stone-400 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
                                     "min-h-[52px] text-sm"
                                 )}
                                 ref={textareaRef}
@@ -304,7 +304,7 @@ export default function LandingInput({prompt, onSend, isDisabled}: {
                                         className={cn(
                                             "rounded-lg p-1.5 bg-black/5 dark:bg-[#222] cursor-pointer",
                                             "hover:bg-black/10 dark:hover:bg-[#2a2a2a] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-pink-500",
-                                            "text-black/40 dark:text-gray-400 hover:text-black dark:hover:text-white",
+                                            "text-black/40 dark:text-stone-400 hover:text-black dark:hover:text-white",
                                             (isLoading || isDisabled) && "opacity-50 pointer-events-none"
                                         )}
                                         aria-label="Attach file"

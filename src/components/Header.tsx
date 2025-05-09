@@ -39,7 +39,7 @@ export const Header = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-300 hover:text-white hover:bg-transparent"
+                  className="text-stone-300 hover:text-white hover:bg-transparent"
                 >
                   Login
                 </Button>
@@ -48,7 +48,7 @@ export const Header = () => {
               <SignUpButton>
                 <Button
                   size="sm"
-                  className="bg-white text-black hover:bg-gray-200 font-medium"
+                  className="bg-white text-black hover:bg-stone-200 font-medium"
                 >
                   Start free →
                 </Button>
@@ -67,14 +67,14 @@ export const Header = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden text-gray-300 hover:text-white hover:bg-transparent"
+                className="md:hidden text-stone-300 hover:text-white hover:bg-transparent"
               >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent
               side="right"
-              className="w-[300px] sm:w-[400px] bg-black/90 border-gray-800"
+              className="w-[300px] sm:w-[400px] bg-black/90 border-stone-800"
             >
               <nav className="flex flex-col gap-4 mt-8">
                 <div className="mt-4">
@@ -111,14 +111,14 @@ export const Header = () => {
                     <SignInButton>
                       <Button
                         variant="ghost"
-                        className="w-full text-gray-300 hover:text-white hover:bg-transparent justify-start"
+                        className="w-full text-stone-300 hover:text-white hover:bg-transparent justify-start"
                       >
                         Login
                       </Button>
                     </SignInButton>
 
                     <SignUpButton>
-                      <Button className="w-full bg-white text-black hover:bg-gray-200 font-medium">
+                      <Button className="w-full bg-white text-black hover:bg-stone-200 font-medium">
                         Start free →
                       </Button>
                     </SignUpButton>

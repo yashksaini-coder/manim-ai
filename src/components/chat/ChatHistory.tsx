@@ -186,7 +186,7 @@ export function ChatHistory({
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/60 to-transparent pointer-events-none z-10" />
-      <p className="text-xs text-gray-500 text-start pl-5 pt-5">*AI-generated animations may vary in quality</p>
+      <p className="text-xs text-stone-500 text-start pl-5 pt-5">*AI-generated animations may vary in quality</p>
       <div
         className={`p-4 py-5 sticky bottom-0 transition-shadow duration-200 shadow-3xl z-20`}
       >

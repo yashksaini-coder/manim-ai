@@ -67,7 +67,7 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="w-full rounded-lg overflow-hidden bg-gray-950 border border-[#232323]"
+      className="w-full rounded-lg overflow-hidden"
     >
       <div className="relative">
         {/* Loading overlay - no AnimatePresence */}
@@ -93,14 +93,14 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
             </div>
             
             {/* Progress bar */}
-            <div className="w-48 h-1.5 bg-gray-800 rounded-full overflow-hidden mb-2">
+            <div className="w-48 h-1.5 bg-stone-800 rounded-full overflow-hidden mb-2">
               <motion.div 
                 className="h-full bg-gradient-to-r from-green-500 to-teal-500"
                 style={{ width: `${loadingProgress}%` }}
                 transition={{ duration: 0.3 }}
               />
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-stone-400">
               {isLoading ? "Generating animation..." : "Loading video..."}
             </div>
           </div>
@@ -155,10 +155,10 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
           <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
             <Play className="h-8 w-8 text-green-400" />
           </div>
-          <p className="text-lg text-gray-300 font-medium text-center">
+          <p className="text-lg text-stone-300 font-medium text-center">
             No animation loaded
           </p>
-          <p className="text-sm text-gray-500 mt-3 text-center">
+          <p className="text-sm text-stone-500 mt-3 text-center">
           </p>
         </div>
       )}

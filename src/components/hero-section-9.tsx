@@ -77,7 +77,7 @@ export const HeroSection = () => {
                             {isRedirecting ? (
                                 <div className="flex flex-col items-center justify-center py-6 space-y-4">
                                     <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                                    <p className="text-sm text-gray-500">Preparing your animation workspace...</p>
+                                    <p className="text-sm text-stone-500">Preparing your animation workspace...</p>
                                 </div>
                             ) : (
                                 <div className="px-40">

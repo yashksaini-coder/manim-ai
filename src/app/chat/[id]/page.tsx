@@ -4,6 +4,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatCodeBlock } from "@/components/chat/ChatCodeBlock";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoCard } from "@/components/chat/VideoCard";
 import { Code, Play, RefreshCw, ArrowDown } from "lucide-react";
 import ChatPageInput from "@/components/chat/chat-page-input";
@@ -587,7 +588,7 @@ I'm now rendering this animation for you...`,
                     className="h-3 w-3 rounded-full bg-purple-400"
                   />
                 </div>
-                <p className="text-sm text-gray-400">Loading conversation...</p>
+                <p className="text-sm text-stone-400">Loading conversation...</p>
               </motion.div>
             </div>
           ) : (
@@ -598,8 +599,8 @@ I'm now rendering this animation for you...`,
                 scrollHideDelay={100}
                 type="always"
               >
-                <div className="py-4 space-y-4">
-                  <div className="space-y-4 mx-auto max-w-[95%]">
+                <div className="space-y-2">
+                  <div className="space-y-4">
                     <AnimatePresence initial={false}>
                       {messages.map((message) => (
                         <motion.div
@@ -626,7 +627,6 @@ I'm now rendering this animation for you...`,
                       ))}
                     </AnimatePresence>
 
-                    {/* AI is responding - show loading indicator if no messages yet */}
                     <AnimatePresence>
                       {(isProcessing || isLoadingInitialMessage) &&
                         messages.length === 0 && (
@@ -646,7 +646,7 @@ I'm now rendering this animation for you...`,
                     </AnimatePresence>
 
                     {/* Show code block if available */}
-                    <AnimatePresence>
+                    {/* <AnimatePresence>
                       {aiResponse?.code && (
                         <motion.div
                           className="mt-6 relative mx-4"
@@ -661,7 +661,7 @@ I'm now rendering this animation for you...`,
                           <ChatCodeBlock code={aiResponse.code} />
                         </motion.div>
                       )}
-                    </AnimatePresence>
+                    </AnimatePresence> */}
                     <div ref={messagesEndRef} className="h-px" />
                   </div>
                 </div>
@@ -714,65 +714,114 @@ I'm now rendering this animation for you...`,
 
         {/* Right side - Video area */}
         <div className="w-full flex flex-col h-full overflow-hidden bg-secondary/30 border rounded-xl">
-          <div className="flex-1 p-6">
-            {isProcessing && (
-              <div className="mb-6">
-                <div className="text-sm text-gray-400 flex items-center">
-                  <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-                  {getStatusMessage()}
-                </div>
+          <div className="">
+            <Tabs defaultValue="video" className="w-full h-full">
+              <div className="w-full border-b py-0.5 px-1">
+                <TabsList className="">
+                  <TabsTrigger value="code">Code</TabsTrigger>
+                  <TabsTrigger value="video">Video</TabsTrigger>
+                </TabsList>
               </div>
-            )}
+              <div className="px-2">
+                <TabsContent value="video">
+                  <div className="flex-1">
+                    {isProcessing && (
+                      <div className="mb-6">
+                        <div className="text-sm text-stone-400 flex items-center">
+                          <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                          {getStatusMessage()}
+                        </div>
+                      </div>
+                    )}
+                    {!aiResponse?.videoUrl ? (
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className="w-full flex justify-center">
+                          <VideoCard
+                            videoUrl={
+                              aiResponse?.videoUrl ||
+                              "https://manima.blr1.digitaloceanspaces.com/manima/video-0069eb5d-36f7-45b0-b165-613e49ad39c9-GenScene-148355.mp4"
+                            }
+                            isLoading={false}
+                          />
+                        </div>
+                      </div>
+                    ) : !isProcessing && !aiResponse?.error ? (
+                      // Empty state
+                      <div className="flex-1 flex flex-col items-center justify-center text-stone-500 min-h-[500px]">
+                        <div className="text-center p-8 border border-dashed border-stone-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
+                          <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
+                            <Play className="h-8 w-8 text-pink-400" />
+                          </div>
+                          <p className="text-lg text-stone-300 font-medium">
+                            Enter a prompt to generate a Manim animation
+                          </p>
+                          <p className="text-sm text-stone-500 mt-3 leading-relaxed">
+                            Try something like: "Create a bouncing ball
+                            animation with trail effects", "Animate the
+                            quadratic formula", or "Show a sine wave transform"
+                          </p>
+                        </div>
+                      </div>
+                    ) : isProcessing ? (
+                      // Show loading state when processing
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className="w-full max-w-[90%]">
+                          <VideoCard videoUrl="" isLoading={true} />
+                        </div>
+                      </div>
+                    ) : null}
 
-            {/* Show content based on state - Removed AnimatePresence */}
-            {/* Show video if available */}
-            {aiResponse?.videoUrl ? (
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="w-full max-w-[90%] flex justify-center">
-                  <VideoCard
-                    videoUrl={aiResponse.videoUrl || ""}
-                    isLoading={false}
-                  />
-                </div>
-              </div>
-            ) : !isProcessing && !aiResponse?.error ? (
-              // Empty state
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 min-h-[500px]">
-                <div className="text-center p-8 border border-dashed border-gray-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
-                  <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
-                    <Play className="h-8 w-8 text-pink-400" />
+                    {/* Show error if any */}
+                    {aiResponse?.error && (
+                      <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
+                        <p className="mb-3">{aiResponse.error}</p>
+                        <button
+                          onClick={handleRetry}
+                          className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
+                        >
+                          <RefreshCw className="h-4 w-4" /> Try Again
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-lg text-gray-300 font-medium">
-                    Enter a prompt to generate a Manim animation
-                  </p>
-                  <p className="text-sm text-gray-500 mt-3 leading-relaxed">
-                    Try something like: "Create a bouncing ball animation with
-                    trail effects", "Animate the quadratic formula", or "Show a
-                    sine wave transform"
-                  </p>
-                </div>
-              </div>
-            ) : isProcessing ? (
-              // Show loading state when processing
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="w-full max-w-[90%]">
-                  <VideoCard videoUrl="" isLoading={true} />
-                </div>
-              </div>
-            ) : null}
+                </TabsContent>
+                <TabsContent value="code">
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <div className="w-full">
+                      <ChatCodeBlock
+                        code={
+                          aiResponse?.code ||
+                          `"use client";
 
-            {/* Show error if any */}
-            {aiResponse?.error && (
-              <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
-                <p className="mb-3">{aiResponse.error}</p>
-                <button
-                  onClick={handleRetry}
-                  className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4" /> Try Again
-                </button>
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { Home, ArrowLeft, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+export default function NotFound() {
+  const [countdown, setCountdown] = useState(10);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const router = useRouter();
+  useEffect(() => {
+    if (countdown > 0 && !isRedirecting) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && !isRedirecting) {
+      setIsRedirecting(true);
+      router.push("/");
+    }
+  }, [countdown, isRedirecting, router]);
+
+  `
+                        }
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
               </div>
-            )}
+            </Tabs>
           </div>
         </div>
       </motion.div>

@@ -59,7 +59,7 @@ export function ChatHeader({ sessionId, model }: ChatHeaderProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-xs text-gray-400"
+              className="text-xs text-stone-400"
             >
               Model: {model}
             </motion.div>
@@ -97,9 +97,9 @@ export function ChatHeader({ sessionId, model }: ChatHeaderProps) {
                 className="absolute right-0 mt-2 w-48 rounded-md bg-[#1a1a1a] border border-[#232323] shadow-lg z-50"
               >
                 <div className="py-1">
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#232323] hover:text-white">Your Profile</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#232323] hover:text-white">Settings</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#232323] hover:text-white">Help</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-stone-300 hover:bg-[#232323] hover:text-white">Your Profile</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-stone-300 hover:bg-[#232323] hover:text-white">Settings</a>
+                  <a href="#" className="block px-4 py-2 text-sm text-stone-300 hover:bg-[#232323] hover:text-white">Help</a>
                   <div className="border-t border-[#232323] my-1"></div>
                   <a href="#" className="block px-4 py-2 text-sm text-red-400 hover:bg-[#232323] hover:text-red-300">Sign out</a>
                 </div>
