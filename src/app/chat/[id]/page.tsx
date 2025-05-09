@@ -7,6 +7,7 @@ import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
 import { Code, Play, RefreshCw, ArrowDown } from 'lucide-react';
 import AI_Prompt from '@/components/ai-chat-input';
+import ChatPageInput from '@/components/chat/chat-page-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useParams } from 'next/navigation';
@@ -453,9 +454,20 @@ I'm now rendering this animation for you...`,
     setMessages(prev => [...prev, userMessage]);
     setRenderProgress(0);
     
-    // Store the message and process it
+    // Make sure we have the chat id from params
+    const currentChatId = chatId || '';
+    
+    // Store the message in localStorage
+    cacheManager.storePrompt(currentChatId, message);
+    
+    // Store the model if provided
+    if (model) {
+      cacheManager.storeModel(currentChatId, model);
+    }
+    
+    // Process the message using our API functions
     processUserMessage(message, model);
-  }, [processUserMessage]);
+  }, [processUserMessage, chatId]);
   
   // Get status message based on current processing stage
   const getStatusMessage = useCallback(() => {
@@ -645,10 +657,11 @@ I'm now rendering this animation for you...`,
                 <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
                   <div className="w-full mx-auto">
                     <div className="shadow-xl rounded-xl">
-                      <AI_Prompt 
+                      <ChatPageInput 
                         prompt="" 
-                        onSend={(message) => {
-                          const model = searchParams.get('model') || undefined;
+                        chatId={chatId}
+                        defaultModel={searchParams.get('model') || undefined}
+                        onSend={(message, model) => {
                           handleSendMessage(message, model);
                         }}
                         isDisabled={isProcessing} 
