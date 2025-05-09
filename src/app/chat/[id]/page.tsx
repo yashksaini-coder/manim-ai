@@ -6,29 +6,23 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatCodeBlock } from "@/components/chat/ChatCodeBlock";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoCard } from "@/components/chat/VideoCard";
-import { Code, Play, RefreshCw, ArrowDown } from "lucide-react";
+import { Play, RefreshCw } from "lucide-react";
 import ChatPageInput from "@/components/chat/chat-page-input";
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cacheManager } from "@/lib/api-helpers";
 import { useUser } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
-// Temporarily comment out the problematic import to fix the immediate error
-// We need to find the correct path to the Convex API
-import { api } from "../../../../convex/_generated/api";
-// Until the correct path is found, we'll use any imports conditionally
-// and add fallbacks for when Convex operations fail
 
 // Import the API client functions
 import {
   createSession,
-  getSession,
   getMessages,
   createMessage,
   updateSessionWithVideo,
   createVideo
 } from "@/lib/api-client";
 
+// Message interface for chat messages
 interface Message {
   id: string;
   role: "user" | "ai";
@@ -36,7 +30,7 @@ interface Message {
   timestamp: Date;
 }
 
-// Workflow stages
+// Workflow stages for animation generation
 enum ProcessingStage {
   Idle = "idle",
   GeneratingCode = "generating-code",
@@ -50,70 +44,65 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const initialPrompt = searchParams.get("prompt");
   const paramId = useParams();
-  const chatId =
-    typeof paramId === "object" && paramId.id
-      ? Array.isArray(paramId.id)
-        ? paramId.id[0]
-        : paramId.id
-      : params.id;
+  
+  // Extract chat ID from params
+  const chatId = typeof paramId === "object" && paramId.id
+    ? Array.isArray(paramId.id) ? paramId.id[0] : paramId.id
+    : params.id;
 
+  // State management
   const [messages, setMessages] = useState<Message[]>([]);
-  const [processingStage, setProcessingStage] = useState<ProcessingStage>(
-    ProcessingStage.Idle
-  );
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [codeContent, setCodeContent] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [status, setStatus] = useState<"generating" | "rendering" | "complete" | "error">("generating");
   const [renderProgress, setRenderProgress] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
   const [isInitialRequestSent, setIsInitialRequestSent] = useState(false);
 
-  const isProcessing =
-    processingStage !== ProcessingStage.Idle &&
-    processingStage !== ProcessingStage.Complete &&
-    processingStage !== ProcessingStage.Error;
-
-  // Reference to timeout for cleanup
+  // Refs
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const cleaner = (code: string) => {
+  // Get user info from Clerk
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const clerkId = user?.id;
+
+  // Computed state
+  const isProcessing = processingStage !== ProcessingStage.Idle && 
+                      processingStage !== ProcessingStage.Complete && 
+                      processingStage !== ProcessingStage.Error;
+
+  // Helper function to clean Python code blocks
+  const cleanCode = (code: string) => {
     return code.replace(/```python/g, "").replace(/```/g, "");
   };
 
   // Generate code via API
-  const generateCode = async (
-    prompt: string,
-    model: string = "llama-3.3-70b-versatile"
-  ) => {
+  const generateCode = async (prompt: string, model: string = "llama-3.3-70b-versatile") => {
     try {
-      console.log(
-        `Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`
-      );
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            model,
-          }),
-        }
-      );
+      const baseUrl = process.env.NEXT_PUBLIC_SERVER_PROCESSOR;
+      console.log(`Connecting to ${baseUrl}/v1/generate/code`);
+      
+      const response = await fetch(`${baseUrl}/v1/generate/code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          model,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to generate code: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log(data);
-      console.log(cleaner(data.code));
-      return cleaner(data.code);
+      return cleanCode(data.code);
     } catch (error) {
       console.error("Error generating code:", error);
       throw error;
@@ -123,30 +112,26 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   // Render animation via API
   const renderAnimation = async (code: string): Promise<string> => {
     try {
-      console.log(
-        `Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`
-      );
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: cleaner(code),
-            file_name: "GenScene.py",
-            file_class: "GenScene",
-            iteration: Math.floor(Math.random() * 1000000),
-            project_name: "GenScene",
-          }),
-        }
-      );
+      const baseUrl = process.env.NEXT_PUBLIC_SERVER_PROCESSOR;
+      console.log(`Connecting to ${baseUrl}/v1/render/video`);
+      
+      const response = await fetch(`${baseUrl}/v1/render/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanCode(code),
+          file_name: "GenScene.py",
+          file_class: "GenScene",
+          iteration: Math.floor(Math.random() * 1000000),
+          project_name: "GenScene",
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to render animation: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log(data.video_url);
       return data.video_url;
     } catch (error) {
       console.error("Error rendering animation:", error);
@@ -154,158 +139,113 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   };
 
-  // Get the current user from Clerk
-  const { user, isLoaded: isUserLoaded } = useUser();
-  const clerkId = user?.id;
-  
-  // Comment out all Convex related hooks that depend on the api import
-  /*
-  const session = useQuery(api.sessions.getSessionById, 
-    clerkId && chatId.startsWith("session_") 
-      ? { sessionId: chatId, clerkId } 
-      : "skip"
-  );
-  
-  // Get messages for this session from Convex
-  const sessionMessages = useQuery(api.messages.getMessagesBySessionId,
-    clerkId && chatId.startsWith("session_")
-      ? { sessionId: chatId, clerkId }
-      : "skip"
-  );
-  
-  // Convex mutations for storing data
-  const createSession = useMutation(api.sessions.createSession);
-  const createMessage = useMutation(api.messages.createMessage);
-  const updateSessionWithVideo = useMutation(api.sessions.updateSessionWithVideo);
-  */
-
-  // Process a user message with API calls
-  const processUserMessage = useCallback(
-    async (prompt: string, model?: string) => {
-      // Generate a unique request ID based on prompt and model to prevent duplicate calls
-      const requestId = `${prompt}_${model || "default"}`;
+  // Process user message and generate animation
+  const processUserMessage = useCallback(async (prompt: string, model?: string) => {
+    // Skip if this is a duplicate of the initial request
+    if (isInitialRequestSent && initialPrompt === prompt) {
+      console.log("Skipping duplicate API call for initial prompt");
+      return;
+    }
+    
+    // Update state to show we're processing
+    setProcessingStage(ProcessingStage.GeneratingCode);
+    setStatus("generating");
+    
+    try {
+      // Start with current chat ID
+      let currentSessionId = chatId;
       
-      // Don't make API calls if we've already sent the initial request
-      if (isInitialRequestSent && initialPrompt === prompt) {
-        console.log("Skipping duplicate API call for initial prompt");
+      // Create session if user is signed in and we don't have a session ID yet
+      if (clerkId && isUserLoaded) {
+        if (!chatId.startsWith("session_")) {
+          try {
+            const sessionResponse = await createSession(clerkId, prompt);
+            
+            if (sessionResponse && sessionResponse.sessionId) {
+              currentSessionId = sessionResponse.sessionId;
+              console.log("Created new session:", currentSessionId);
+              router.push(`/chat/${currentSessionId}`);
+            } else {
+              console.error("Session creation failed or returned unexpected format");
+            }
+          } catch (err) {
+            console.error("Error creating session:", err);
+          }
+        }
+        
+        // Save the user message to database
+        try {
+          await createMessage(clerkId, currentSessionId, "user", prompt);
+        } catch (messageError) {
+          console.error("Error saving message:", messageError);
+        }
+      }
+      
+      // Check if we have cached data for this exact prompt
+      const cachedData = cacheManager.getCachedData(chatId);
+      if (cachedData.code && cachedData.videoUrl && cachedData.prompt === prompt) {
+        console.log("Using cached data for exact prompt match");
+        setCodeContent(cachedData.code);
+        setVideoUrl(cachedData.videoUrl);
+        setStatus("complete");
+        setProcessingStage(ProcessingStage.Complete);
         return;
       }
       
-      setProcessingStage(ProcessingStage.GeneratingCode);
-      setStatus("generating");
+      // Store the prompt in cache
+      cacheManager.storePrompt(chatId, prompt);
       
-      try {
-        // Store user message in database if the user is signed in
-        let currentSessionId = chatId;
-        
-        if (clerkId && isUserLoaded) {
-          // If this is not a session ID yet, create a new session
-          if (!chatId.startsWith("session_")) {
-            try {
-              const sessionResponse = await createSession(clerkId, prompt);
-              
-              // Update URL with the new session ID without reload
-              if (sessionResponse && sessionResponse.sessionId) {
-                currentSessionId = sessionResponse.sessionId;
-                console.log("Created new session:", currentSessionId);
-                router.push(`/chat/${currentSessionId}`);
-              } else {
-                console.error("Session creation failed or returned unexpected format");
-              }
-            } catch (err) {
-              console.error("Error creating session:", err);
-            }
-          }
+      // Determine which model to use
+      const modelToUse = model || cachedData.model || "llama-3.3-70b-versatile";
+      cacheManager.storeModel(chatId, modelToUse);
+      
+      // Step 1: Generate code
+      const generatedCode = await generateCode(prompt, modelToUse);
+      if (!generatedCode) {
+        throw new Error("Failed to generate code");
+      }
+      
+      // Update state with generated code
+      setCodeContent(generatedCode);
+      setStatus("rendering");
+      
+      // Save AI message with confirmation of code generation
+      if (clerkId && isUserLoaded) {
+        await createMessage(
+          clerkId,
+          currentSessionId,
+          "ai",
+          `I've created a Manim animation based on your prompt: "${prompt}". Here's the code.`
+        );
+      }
+      
+      // Cache the generated code
+      cacheManager.storeCode(chatId, generatedCode);
+      
+      // Step 2: Render animation
+      setProcessingStage(ProcessingStage.RenderingAnimation);
+      const videoUrl = await renderAnimation(generatedCode);
+      
+      // Clean up any pending timeouts
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Animation is complete
+      setRenderProgress(100);
+      
+      // Cache and update state with video URL
+      cacheManager.storeVideo(chatId, videoUrl);
+      setVideoUrl(videoUrl);
+      setStatus("complete");
+      
+      // Store video in database if signed in
+      if (clerkId && isUserLoaded) {
+        try {
+          const videoData = await createVideo(clerkId, videoUrl, generatedCode);
           
-          // Save the user message
-          try {
-            await createMessage(clerkId, currentSessionId, "user", prompt);
-          } catch (messageError) {
-            console.error("Error saving message:", messageError);
-          }
-        }
-        
-        // Check cached data first - only for exact prompt matches
-        const cachedData = cacheManager.getCachedData(chatId);
-        if (
-          cachedData.code &&
-          cachedData.videoUrl &&
-          cachedData.prompt === prompt
-        ) {
-          console.log("Using cached data for exact prompt match");
-          setCodeContent(cachedData.code);
-          setVideoUrl(cachedData.videoUrl);
-          setStatus("complete");
-          setProcessingStage(ProcessingStage.Complete);
-          
-          return;
-        }
-        
-        // Store the prompt in cache
-        cacheManager.storePrompt(chatId, prompt);
-        
-        // Determine which model to use - prioritize the explicit model parameter
-        const modelToUse = model || cachedData.model || "gemma-2-9b-it";
-        
-        // Store the model
-        cacheManager.storeModel(chatId, modelToUse);
-        
-        // Step 1: Generate code
-        const generatedCode = await generateCode(prompt, modelToUse);
-        if (!generatedCode) {
-          throw new Error("Failed to generate code");
-        }
-        
-        // Store code content
-        setCodeContent(generatedCode);
-        setStatus("rendering");
-        
-        // If user is signed in, store AI message with the code
-        if (clerkId && isUserLoaded) {
-          await createMessage(
-            clerkId,
-            currentSessionId,
-            "ai",
-            `I've created a Manim animation based on your prompt: "${prompt}". Here's the code.`
-          );
-        }
-        
-        // Cache the generated code
-        cacheManager.storeCode(chatId, generatedCode);
-        
-        // Step 2: Start rendering animation
-        setProcessingStage(ProcessingStage.RenderingAnimation);
-        
-        // Step 3: Render animation using API
-        const videoUrl = await renderAnimation(generatedCode);
-        
-        // Clear any pending timeouts
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        
-        // Set render progress to 100% when complete
-        setRenderProgress(100);
-        
-        // Cache the video URL
-        cacheManager.storeVideo(chatId, videoUrl);
-        
-        // Update state with video URL
-        setVideoUrl(videoUrl);
-        setStatus("complete");
-        
-        // Store video URL in database if user is signed in
-        if (clerkId && isUserLoaded) {
-          try {
-            // First, create a video record
-            const videoData = await createVideo(clerkId, videoUrl, generatedCode);
-            
-            // Then link it to the session
-            if (videoData && videoData.videoId) {
-              await updateSessionWithVideo(clerkId, currentSessionId, videoData.videoId);
-            }
-            
-            // Add final AI message confirming the video is ready
+          if (videoData && videoData.videoId) {
+            await updateSessionWithVideo(clerkId, currentSessionId, videoData.videoId);
             await createMessage(
               clerkId,
               currentSessionId,
@@ -313,59 +253,55 @@ export default function ChatPage({ params }: { params: { id: string } }) {
               "Your animation is ready!",
               videoData.videoId
             );
-          } catch (error) {
-            console.error("Error storing video:", error);
           }
-        }
-        
-        setProcessingStage(ProcessingStage.Complete);
-      } catch (error) {
-        console.error("Error processing request:", error);
-        setError("Failed to generate or render animation. Please try again.");
-        setStatus("error");
-        setProcessingStage(ProcessingStage.Error);
-        
-        // Store error message in database if user is signed in
-        if (clerkId && isUserLoaded) {
-          await createMessage(
-            clerkId,
-            chatId,
-            "ai",
-            "Error: Failed to generate or render animation. Please try again."
-          );
-        }
-      } finally {
-        // Mark that we've made the initial API call
-        if (initialPrompt === prompt) {
-          setIsInitialRequestSent(true);
+        } catch (error) {
+          console.error("Error storing video:", error);
         }
       }
-    },
-    [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]
-  );
+      
+      setProcessingStage(ProcessingStage.Complete);
+    } catch (error) {
+      console.error("Error processing request:", error);
+      setError("Failed to generate or render animation. Please try again.");
+      setStatus("error");
+      setProcessingStage(ProcessingStage.Error);
+      
+      // Store error message
+      if (clerkId && isUserLoaded) {
+        await createMessage(
+          clerkId,
+          chatId,
+          "ai",
+          "Error: Failed to generate or render animation. Please try again."
+        );
+      }
+    } finally {
+      // Mark that initial API call is complete
+      if (initialPrompt === prompt) {
+        setIsInitialRequestSent(true);
+      }
+    }
+  }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]);
 
-  // Use memoized dependencies to prevent useEffect dependency issues
-  const memoizedDeps = useCallback(() => {
-    return {
-      chatId,
-      initialPrompt,
-      processUserMessageFn: processUserMessage,
-    };
-  }, [chatId, initialPrompt, processUserMessage]);
+  // Memoize dependencies to prevent useEffect dependency issues
+  const memoizedDeps = useCallback(() => ({
+    chatId,
+    initialPrompt,
+    processUserMessageFn: processUserMessage,
+  }), [chatId, initialPrompt, processUserMessage]);
 
-  // Cache the memoized dependencies
+  // Cache memoized dependencies
   const deps = useRef(memoizedDeps()).current;
 
-  // Use useEffect to set the initial value when prompt changes
+  // Load initial prompt from URL or cache
   useEffect(() => {
     const loadInitialPrompt = async () => {
       setIsLoadingInitialMessage(true);
 
-      // First check URL parameters
+      // Try to get prompt from URL or cache
       let promptToUse = initialPrompt;
       let modelToUse = searchParams.get("model");
 
-      // If not found in URL, try localStorage via cacheManager
       if (!promptToUse || !modelToUse) {
         const cachedData = cacheManager.getCachedData(deps.chatId);
         if (cachedData.prompt) {
@@ -376,14 +312,14 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         }
       }
 
-      // Ensure we have a default model if none was found
+      // Set default model if needed
       if (!modelToUse) {
         modelToUse = "llama-3.3-70b-versatile";
       }
 
       if (promptToUse) {
-        // Add initial user message with a small delay to allow component to mount
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Add a small delay to allow component to mount
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         const userMessage: Message = {
           id: `user-${Date.now()}`,
@@ -409,9 +345,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     };
   }, [deps, searchParams]);
 
-  // Handle initial page load animation
+  // Handle page load animation
   useEffect(() => {
-    // Short timeout to ensure smooth page transition
     const pageLoadTimeout = setTimeout(() => {
       setPageLoading(false);
     }, 500);
@@ -419,25 +354,20 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     return () => clearTimeout(pageLoadTimeout);
   }, []);
 
-  // Enhanced scroll behavior with better detection
+  // Handle scroll behavior
   useEffect(() => {
     if (!messagesContainerRef.current) return;
 
-    // When using shadcn ScrollArea, we need to access the scrollable element differently
     const scrollAreaElement = messagesContainerRef.current.querySelector(
       "[data-radix-scroll-area-viewport]"
     );
     if (!scrollAreaElement) return;
 
     const handleScrollCheck = () => {
-      const { scrollHeight, clientHeight, scrollTop } =
-        scrollAreaElement as HTMLDivElement;
-
-      // More precise check if user is at the bottom (within 150px)
+      const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
       const isNearBottom = scrollHeight <= scrollTop + clientHeight + 150;
 
       if (isNearBottom) {
-        // Use a small timeout to ensure DOM has updated
         setTimeout(() => {
           (scrollAreaElement as HTMLDivElement).scrollTo({
             top: scrollHeight,
@@ -447,175 +377,151 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
         setShowScrollButton(false);
       } else if (messages.length > 0) {
-        // Only show scroll button if we have messages and user has scrolled up
         setShowScrollButton(true);
       }
     };
 
-    // Initial check
     handleScrollCheck();
-
-    return () => {
-      // No event listeners to clean up in this effect
-    };
   }, [messages]);
 
-  // Update render progress with memoized function
-  const updateRenderProgress = useCallback(() => {
-    if (processingStage === ProcessingStage.RenderingAnimation) {
-      const newProgress = renderProgress + Math.random() * 10;
-      if (newProgress < 100) {
-        setRenderProgress(Math.min(newProgress, 99));
-        timeoutRef.current = setTimeout(updateRenderProgress, 500);
-      } else {
-        setRenderProgress(100);
-        completeRendering();
+  // Handle scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      const scrollToView = () => {
+        if (!messagesContainerRef.current) return;
+
+        const scrollAreaElement = messagesContainerRef.current.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        );
+        if (!scrollAreaElement) return;
+
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      };
+
+      const scrollTimeout = setTimeout(scrollToView, 100);
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [messages]);
+
+  // Send a new message in the chat
+  const handleSendMessage = useCallback(async (message: string, model?: string) => {
+    if (!message.trim()) return;
+    
+    // 1. Add user message to the UI
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Save to database if signed in
+    if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
+      try {
+        await createMessage(clerkId, chatId, "user", message);
+      } catch (error) {
+        console.error("Error saving message:", error);
       }
     }
-  }, [processingStage, renderProgress]);
+    
+    // 2. Add placeholder AI message
+    const aiMsgId = `ai-${Date.now()}`;
+    const aiMessage: Message = {
+      id: aiMsgId,
+      role: "ai",
+      content: "Generating code for your animation...",
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, aiMessage]);
+    
+    // Reset state for new generation
+    setCodeContent("");
+    setVideoUrl("");
+    setError("");
+    setStatus("generating");
+    setProcessingStage(ProcessingStage.GeneratingCode);
 
-  // Complete rendering with memoized function
-  const completeRendering = useCallback(() => {
-    setProcessingStage(ProcessingStage.Complete);
-    setStatus("complete");
-  }, []);
+    try {
+      // 3. Generate code
+      const code = await generateCode(message, model || "llama-3.3-70b-versatile");
+      setCodeContent(code);
+      setStatus("rendering");
 
-  // Handle sending follow-up messages and manage the full workflow
-  const handleSendMessage = useCallback(
-    async (message: string, model?: string) => {
-      if (!message.trim()) return;
-      
-      // 1. Add user message
-      const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: message,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
-      
-      // Save message to database if user is signed in
-      if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
+      // Save AI update to database
+      if (clerkId && isUserLoaded) {
+        await createMessage(clerkId, chatId, "ai", "Rendering animation...");
+      }
+
+      // 4. Update AI message to show rendering status
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, content: "Rendering animation..." }
+            : msg
+        )
+      );
+
+      // 5. Render animation
+      setProcessingStage(ProcessingStage.RenderingAnimation);
+      const videoUrl = await renderAnimation(code);
+      setVideoUrl(videoUrl);
+      setStatus("complete");
+
+      // Store video in database
+      if (clerkId && isUserLoaded) {
         try {
-          await createMessage(clerkId, chatId, "user", message);
+          const videoData = await createVideo(clerkId, videoUrl, code);
+          
+          if (videoData && videoData.videoId) {
+            await updateSessionWithVideo(clerkId, chatId, videoData.videoId);
+          }
         } catch (error) {
-          console.error("Error saving message:", error);
+          console.error("Error storing video:", error);
         }
+      }
+
+      // 6. Update AI message to show completion
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.role === "ai" && msg.id === aiMsgId
+            ? { ...msg, content: "Here's your animation!" }
+            : msg
+        )
+      );
+
+      // Save final message
+      if (clerkId && isUserLoaded) {
+        await createMessage(clerkId, chatId, "ai", "Here's your animation!");
+      }
+
+      setProcessingStage(ProcessingStage.Complete);
+    } catch (err) {
+      setError("Failed to generate or render animation.");
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, content: "Something went wrong. Please try again." }
+            : msg
+        )
+      );
+      
+      // Save error message
+      if (clerkId && isUserLoaded) {
+        await createMessage(
+          clerkId,
+          chatId,
+          "ai",
+          "Error: Failed to generate or render animation. Please try again."
+        );
       }
       
-      // 2. Add AI message: Generating code...
-      const aiMsgId = `ai-${Date.now()}`;
-      const aiMessage: Message = {
-        id: aiMsgId,
-        role: "ai",
-        content: "Generating code for your animation...",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setCodeContent("");
-      setVideoUrl("");
-      setError("");
-      setStatus("generating");
-      setProcessingStage(ProcessingStage.GeneratingCode);
+      setStatus("error");
+      setProcessingStage(ProcessingStage.Error);
+    }
+  }, [clerkId, isUserLoaded, chatId]);
 
-      try {
-        // 3. Generate code
-        const code = await generateCode(
-          message,
-          model || "llama-3.3-70b-versatile"
-        );
-        setCodeContent(code);
-        setStatus("rendering");
-
-        // Save AI message with code
-        if (clerkId && isUserLoaded) {
-          await createMessage(
-            clerkId,
-            chatId,
-            "ai",
-            "Rendering animation..."
-          );
-        }
-
-        // 4. Update AI message: Rendering animation...
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId
-              ? { ...msg, content: "Rendering animation..." }
-              : msg
-          )
-        );
-
-        // 5. Render animation
-        setProcessingStage(ProcessingStage.RenderingAnimation);
-        const videoUrl = await renderAnimation(code);
-        console.log(videoUrl);
-        setVideoUrl(videoUrl);
-        setStatus("complete");
-
-        // Store the video information
-        if (clerkId && isUserLoaded) {
-          try {
-            // First, create a video record
-            const videoData = await createVideo(clerkId, videoUrl, code);
-            
-            // Then link it to the session
-            if (videoData && videoData.videoId) {
-              await updateSessionWithVideo(clerkId, chatId, videoData.videoId);
-            }
-          } catch (error) {
-            console.error("Error storing video:", error);
-          }
-        }
-
-        // 6. Update AI message: Here's your animation!
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId
-              ? { ...msg, content: "Here's your animation!" }
-              : msg
-          )
-        );
-
-        // Save final AI message
-        if (clerkId && isUserLoaded) {
-          await createMessage(
-            clerkId,
-            chatId,
-            "ai",
-            "Here's your animation!"
-          );
-        }
-
-        setProcessingStage(ProcessingStage.Complete);
-      } catch (err) {
-        setError("Failed to generate or render animation.");
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId
-              ? { ...msg, content: "Something went wrong. Please try again." }
-              : msg
-          )
-        );
-        
-        // Save error message
-        if (clerkId && isUserLoaded) {
-          await createMessage(
-            clerkId,
-            chatId,
-            "ai",
-            "Error: Failed to generate or render animation. Please try again."
-          );
-        }
-        
-        setStatus("error");
-        setProcessingStage(ProcessingStage.Error);
-      }
-    },
-    [clerkId, isUserLoaded, chatId]
-  );
-
-  // Get status message based on current processing stage
+  // Get status message based on current stage
   const getStatusMessage = useCallback(() => {
     switch (processingStage) {
       case ProcessingStage.GeneratingCode:
@@ -632,7 +538,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   // Retry in case of error
   const handleRetry = useCallback(() => {
     if (messages.length > 0) {
-      const lastUserMessage = messages.filter((m) => m.role === "user").pop();
+      const lastUserMessage = messages.filter(m => m.role === "user").pop();
       if (lastUserMessage) {
         setIsInitialRequestSent(false); // Reset flag to allow retry
         processUserMessage(lastUserMessage.content);
@@ -640,33 +546,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   }, [messages, processUserMessage]);
 
-  // Go back to landing page
-  const handleBack = useCallback(() => {
-    router.push("/");
-  }, [router]);
-
-  // Scroll to messagesEnd when new messages are added
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      // Find the scroll viewport and scroll to the messages end
-      const scrollToView = () => {
-        if (!messagesContainerRef.current) return;
-
-        const scrollAreaElement = messagesContainerRef.current.querySelector(
-          "[data-radix-scroll-area-viewport]"
-        );
-        if (!scrollAreaElement) return;
-
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      };
-
-      // Small delay to ensure DOM is updated
-      const scrollTimeout = setTimeout(scrollToView, 100);
-      return () => clearTimeout(scrollTimeout);
-    }
-  }, [messages]);
-
-  // Effect to load messages when session data is available
+  // Load existing messages for this session
   useEffect(() => {
     const loadSessionMessages = async () => {
       if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
@@ -674,7 +554,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           const messagesData = await getMessages(clerkId, chatId);
           if (messagesData && Array.isArray(messagesData) && messagesData.length > 0) {
             // Format messages from API to our Message format
-            const formattedMessages = messagesData.map((msg) => ({
+            const formattedMessages = messagesData.map(msg => ({
               id: msg._id || `msg-${Date.now()}-${Math.random()}`,
               role: msg.role as "user" | "ai",
               content: msg.content,
@@ -691,12 +571,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
     loadSessionMessages();
   }, [clerkId, isUserLoaded, chatId]);
-
-  useEffect(() => {
-    console.log("aiResponse updated:", { videoUrl, codeContent, error, status });
-  }, [videoUrl, codeContent, error, status]);
-
-  console.log("VideoCard url:", videoUrl);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
@@ -764,8 +638,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                             role={message.role}
                             isLoading={
                               message.role === "ai" &&
-                              processingStage ===
-                                ProcessingStage.GeneratingCode &&
+                              processingStage === ProcessingStage.GeneratingCode &&
                               messages[messages.length - 1].id === message.id
                             }
                           />
@@ -796,7 +669,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                 </div>
               </ScrollArea>
 
-              {/* Input field - fixed at bottom - show only when page is loaded */}
+              {/* Input field - show only when page is loaded */}
               {!pageLoading && (
                 <div className="w-full mx-auto">
                   <div className="shadow-xl rounded-xl">
@@ -807,9 +680,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                         cacheManager.getCachedData(chatId).model ||
                         "llama-3.3-70b-versatile"
                       }
-                      onSend={(message, model) => {
-                        handleSendMessage(message, model);
-                      }}
+                      onSend={handleSendMessage}
                       isDisabled={isProcessing}
                     />
                   </div>
@@ -819,77 +690,71 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* Right side - Video area */}
+        {/* Right side - Video/Code area */}
         <div className="w-full flex flex-col h-full overflow-hidden bg-secondary/30 border rounded-xl">
-          <div className="">
-            <Tabs defaultValue="video" className="w-full h-full">
-              <div className="w-full border-b py-0.5 px-1">
-                <TabsList className="">
-                  <TabsTrigger value="code">Code</TabsTrigger>
-                  <TabsTrigger value="video">Video</TabsTrigger>
-                </TabsList>
-              </div>
-              <div className="px-2">
-                <TabsContent value="video">
-                  <div className="flex-1">
-                    {isProcessing && (
-                      <div className="mb-6">
-                        <div className="text-sm text-stone-400 flex items-center">
-                          <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-                          {getStatusMessage()}
-                        </div>
+          <Tabs defaultValue="video" className="w-full h-full">
+            <div className="w-full border-b py-0.5 px-1">
+              <TabsList>
+                <TabsTrigger value="code">Code</TabsTrigger>
+                <TabsTrigger value="video">Video</TabsTrigger>
+              </TabsList>
+            </div>
+            <div className="px-2">
+              <TabsContent value="video">
+                <div className="flex-1">
+                  {isProcessing && (
+                    <div className="mb-6">
+                      <div className="text-sm text-stone-400 flex items-center">
+                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                        {getStatusMessage()}
                       </div>
-                    )}
-                    {videoUrl && !isProcessing && !error ? (
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="w-full max-w-[90%]">
-                          <VideoCard videoUrl={videoUrl} isLoading={false} />
-                        </div>
-                      </div>
-                    ) : isProcessing ? (
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="w-full max-w-[90%]">
-                          <VideoCard videoUrl="" isLoading={true} />
-                        </div>
-                      </div>
-                    ) : error ? (
-                      <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
-                        <p className="mb-3">{error}</p>
-                        <button
-                          onClick={handleRetry}
-                          className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
-                        >
-                          <RefreshCw className="h-4 w-4" /> Try Again
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-stone-500 min-h-[500px]">
-                        <div className="text-center p-8 border border-dashed border-stone-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
-                          <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
-                            <Play className="h-8 w-8 text-pink-400" />
-                          </div>
-                          <p className="text-lg text-stone-300 font-medium">
-                            No animation loaded
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                <TabsContent value="code">
-                  <div className="flex-1 flex flex-col items-center justify-center">
-                    <div className="w-full">
-                      <ChatCodeBlock
-                        code={
-                          codeContent || ''
-                        }
-                      />
                     </div>
+                  )}
+                  {videoUrl && !isProcessing && !error ? (
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                      <div className="w-full max-w-[90%]">
+                        <VideoCard videoUrl={videoUrl} isLoading={false} />
+                      </div>
+                    </div>
+                  ) : isProcessing ? (
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                      <div className="w-full max-w-[90%]">
+                        <VideoCard videoUrl="" isLoading={true} />
+                      </div>
+                    </div>
+                  ) : error ? (
+                    <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
+                      <p className="mb-3">{error}</p>
+                      <button
+                        onClick={handleRetry}
+                        className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
+                      >
+                        <RefreshCw className="h-4 w-4" /> Try Again
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-stone-500 min-h-[500px]">
+                      <div className="text-center p-8 border border-dashed border-stone-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
+                        <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
+                          <Play className="h-8 w-8 text-pink-400" />
+                        </div>
+                        <p className="text-lg text-stone-300 font-medium">
+                          No animation loaded
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="code">
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div className="w-full">
+                    <ChatCodeBlock code={codeContent || ''} />
                   </div>
-                </TabsContent>
-              </div>
-            </Tabs>
-          </div>
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
         </div>
       </motion.div>
     </div>
