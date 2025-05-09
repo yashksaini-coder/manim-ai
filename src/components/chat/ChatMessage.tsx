@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Loader2, User } from "lucide-react";
+import { Bot, User } from "lucide-react";
 import { ReactNode, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,6 @@ export function ChatMessage({
   isLoading = false,
   children,
 }: ChatMessageProps) {
-  // Add state to control fading between loading and content
   const { user } = useUser();
   const [showLoading, setShowLoading] = useState(isLoading);
   const [showContent, setShowContent] = useState(
@@ -50,6 +49,9 @@ export function ChatMessage({
     };
   }, [isLoading, content]);
 
+  // Determine styling based on role
+  const isAI = role === "ai";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -60,29 +62,38 @@ export function ChatMessage({
         ease: [0.25, 0.1, 0.25, 1.0],
         staggerChildren: 0.1,
       }}
-      className={cn(
-        "group relative w-full rounded-lg bg-background transition-all",
-        "p-0"
-      )}
+      className="group relative w-full rounded-lg transition-all p-0"
     >
       <div
         className={cn(
-          "flex w-full items-center gap-3 px-4 py-2 rounded-lg",
-          role === "user" ? "bg-secondary/30" : "bg-secondary/10"
+          "flex w-full items-center gap-3 px-4 py-3 rounded-lg",
+          isAI 
+            ? "bg-blue-600/25 border border-blue-500/20" 
+            : "bg-secondary/20 border border-secondary/20"
         )}
       >
-        <Avatar>
-          <AvatarImage src={user?.imageUrl} />
-          <AvatarFallback>
-            {role === "user" ? (
-              <User className="h-5 w-5 " />
-            ) : (
-              <Bot className="h-5 w-5" />
-            )}
-          </AvatarFallback>
+        {/* Avatar */}
+        <Avatar className={isAI ? "border-2 border-blue-500/30" : ""}>
+          {isAI ? (
+            <AvatarFallback className="bg-blue-600">
+              <Bot className="h-5 w-5 text-white" />
+            </AvatarFallback>
+          ) : (
+            <>
+              <AvatarImage src={user?.imageUrl} />
+              <AvatarFallback className="bg-secondary">
+                <User className="h-5 w-5 text-white" />
+              </AvatarFallback>
+            </>
+          )}
         </Avatar>
 
+        {/* Message content */}
         <div className="flex-1 space-y-2">
+          <div className="text-xs font-medium text-muted-foreground mb-1">
+            {isAI ? "AI Assistant" : "You"}
+          </div>
+          
           {/* Message Content with AnimatePresence for smooth transitions */}
           <div className="min-h-[24px]">
             <AnimatePresence mode="wait">
@@ -137,7 +148,10 @@ export function ChatMessage({
                   )}
                 >
                   <ScrollArea className="w-full max-h-[300px] overflow-auto pr-3">
-                    <p className="whitespace-pre-line">{content}</p>
+                    <p className={cn(
+                      "whitespace-pre-line",
+                      isAI ? "text-blue-50" : ""
+                    )}>{content}</p>
                   </ScrollArea>
                 </motion.div>
               )}

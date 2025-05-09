@@ -4,8 +4,8 @@ import { useRef, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Info, ChevronRight, ArrowUp } from "lucide-react";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { Loader2, Info, ChevronRight, ArrowUp, Bot } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 
 type Message = {
@@ -98,13 +98,8 @@ export function ChatHistory({
                             className="rounded-full"
                           />
                         ) : (
-                          <span className="w-8 h-8 flex items-center justify-center bg-primary/20 rounded-full">
-                            <Image
-                              src="/logo.png"
-                              alt="AI"
-                              width={20}
-                              height={20}
-                            />
+                          <span className="w-8 h-8 flex items-center justify-center bg-blue-600/70 rounded-full">
+                            <Bot className="h-5 w-5 text-white" />
                           </span>
                         )}
                       </div>

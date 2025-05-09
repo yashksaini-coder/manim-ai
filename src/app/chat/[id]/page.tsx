@@ -209,6 +209,15 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setCodeContent(generatedCode);
       setStatus("rendering");
       
+      // Update AI message with code generation complete
+      setMessages(prev => {
+        return prev.map(msg =>
+          msg.role === "ai" && msg.id === prev[prev.length - 1].id
+            ? { ...msg, content: "I've created a Manim animation based on your prompt. Rendering animation..." }
+            : msg
+        );
+      });
+      
       // Save AI message with confirmation of code generation
       if (clerkId && isUserLoaded) {
         await createMessage(
@@ -239,6 +248,15 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setVideoUrl(videoUrl);
       setStatus("complete");
       
+      // Update AI message to show completion
+      setMessages(prev => {
+        return prev.map(msg =>
+          msg.role === "ai" && msg.id === prev[prev.length - 1].id
+            ? { ...msg, content: "Here's your animation!" }
+            : msg
+        );
+      });
+      
       // Store video in database if signed in
       if (clerkId && isUserLoaded) {
         try {
@@ -265,6 +283,15 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setError("Failed to generate or render animation. Please try again.");
       setStatus("error");
       setProcessingStage(ProcessingStage.Error);
+      
+      // Update AI message with error
+      setMessages(prev => {
+        return prev.map(msg =>
+          msg.role === "ai" && msg.id === prev[prev.length - 1].id
+            ? { ...msg, content: "Something went wrong. Please try again." }
+            : msg
+        );
+      });
       
       // Store error message
       if (clerkId && isUserLoaded) {
@@ -403,7 +430,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   }, [messages]);
 
-  // Send a new message in the chat
+  // Handle sending follow-up messages and manage the full workflow
   const handleSendMessage = useCallback(async (message: string, model?: string) => {
     if (!message.trim()) return;
     
@@ -456,7 +483,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       // 4. Update AI message to show rendering status
       setMessages(prev =>
         prev.map(msg =>
-          msg.id === aiMsgId
+          msg.role === "ai" && msg.id === aiMsgId
             ? { ...msg, content: "Rendering animation..." }
             : msg
         )
@@ -500,7 +527,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setError("Failed to generate or render animation.");
       setMessages(prev =>
         prev.map(msg =>
-          msg.id === aiMsgId
+          msg.role === "ai" && msg.id === aiMsgId
             ? { ...msg, content: "Something went wrong. Please try again." }
             : msg
         )
