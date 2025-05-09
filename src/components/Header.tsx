@@ -2,37 +2,27 @@
 
 import * as React from "react";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { Menu, UserIcon, Video } from "lucide-react";
+import { Menu, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { ThemeToggle } from "./theme-toggle";
+import { ThemeSwitcher } from "./theme-toggle";
 
 export const Header = () => {
   const { isSignedIn } = useUser();
   const [isOpen, setIsOpen] = React.useState(false);
 
-
   return (
-    <header className="fixed top-5 left-50 right-50 z-50 border border-gray-800/30 bg-red-500/10 backdrop-blur-lg rounded-full">
-      <div className="mx-auto max-w-[1400px] flex items-center justify-between h-16 px-4 sm:px-6">
-        {/* LOGO */}
+    <header className="">
+      <div className="mx-auto max-w-[1400px] flex items-center justify-between py-3">
         <Link href="/" className="flex items-center gap-2">
-          <div className="p-1 bg-primary/10 rounded">
-            <Video className="w-4 h-4 text-primary" />
-          </div>
-          <span className="text-lg font-semibold text-white">
-            <span className="text-primary">Manim</span>
+          <span className="font-medium">
+            <span className="text-primary">Manim.</span>
           </span>
         </Link>
 
-        {/* DESKTOP NAVIGATION */}
-        <nav className="hidden md:flex items-center gap-8">
-        </nav>
-
-        {/* AUTH BUTTONS */}
         <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle />
+          <ThemeSwitcher />
           {isSignedIn ? (
             <>
               <Button
@@ -40,12 +30,7 @@ export const Header = () => {
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground hover:text-primary"
-              >
-                <Link href="/profile" className="flex items-center gap-1.5">
-                  <UserIcon className="h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </Button>
+              ></Button>
               <UserButton />
             </>
           ) : (
@@ -61,7 +46,10 @@ export const Header = () => {
               </SignInButton>
 
               <SignUpButton>
-                <Button size="sm" className="bg-white text-black hover:bg-gray-200 font-medium">
+                <Button
+                  size="sm"
+                  className="bg-white text-black hover:bg-gray-200 font-medium"
+                >
                   Start free →
                 </Button>
               </SignUpButton>
@@ -71,19 +59,26 @@ export const Header = () => {
 
         {/* MOBILE NAVIGATION */}
         <div className="md:hidden flex items-center gap-4">
-          <ThemeToggle />
+          <ThemeSwitcher />
           {isSignedIn && <UserButton />}
-          
+
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden text-gray-300 hover:text-white hover:bg-transparent">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden text-gray-300 hover:text-white hover:bg-transparent"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-black/90 border-gray-800">
+            <SheetContent
+              side="right"
+              className="w-[300px] sm:w-[400px] bg-black/90 border-gray-800"
+            >
               <nav className="flex flex-col gap-4 mt-8">
                 <div className="mt-4">
-                  <ThemeToggle />
+                  <ThemeSwitcher />
                 </div>
                 {isSignedIn ? (
                   <>
@@ -101,7 +96,11 @@ export const Header = () => {
                       variant="ghost"
                       className="justify-start text-muted-foreground hover:text-primary"
                     >
-                      <Link href="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-1.5">
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center gap-1.5"
+                      >
                         <UserIcon className="h-4 w-4" />
                         <span>Profile</span>
                       </Link>

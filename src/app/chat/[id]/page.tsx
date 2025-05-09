@@ -1,15 +1,15 @@
 "use client";
 
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChatMessage } from '@/components/chat/ChatMessage';
-import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
-import { VideoCard } from '@/components/chat/VideoCard';
-import { Code, Play, RefreshCw, ArrowDown } from 'lucide-react';
-import ChatPageInput from '@/components/chat/chat-page-input';
+import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { ChatMessage } from "@/components/chat/ChatMessage";
+import { ChatCodeBlock } from "@/components/chat/ChatCodeBlock";
+import { VideoCard } from "@/components/chat/VideoCard";
+import { Code, Play, RefreshCw, ArrowDown } from "lucide-react";
+import ChatPageInput from "@/components/chat/chat-page-input";
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cacheManager } from '@/lib/api-helpers';
+import { cacheManager } from "@/lib/api-helpers";
 // import { useUser } from '@clerk/nextjs';
 // Types for our messages
 interface Message {
@@ -32,20 +32,25 @@ enum ProcessingStage {
   GeneratingCode = "generating-code",
   RenderingAnimation = "rendering-animation",
   Complete = "complete",
-  Error = "error"
+  Error = "error",
 }
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialPrompt = searchParams.get('prompt');
+  const initialPrompt = searchParams.get("prompt");
   const paramId = useParams();
-  const chatId = typeof paramId === 'object' && paramId.id 
-    ? (Array.isArray(paramId.id) ? paramId.id[0] : paramId.id) 
-    : params.id;
-  
+  const chatId =
+    typeof paramId === "object" && paramId.id
+      ? Array.isArray(paramId.id)
+        ? paramId.id[0]
+        : paramId.id
+      : params.id;
+
   const [messages, setMessages] = useState<Message[]>([]);
-  const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>(
+    ProcessingStage.Idle
+  );
   const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
   const [renderProgress, setRenderProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -54,9 +59,12 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
   const [isInitialRequestSent, setIsInitialRequestSent] = useState(false);
-  
-  const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
-  
+
+  const isProcessing =
+    processingStage !== ProcessingStage.Idle &&
+    processingStage !== ProcessingStage.Complete &&
+    processingStage !== ProcessingStage.Error;
+
   // Reference to timeout for cleanup
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -65,177 +73,196 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   };
 
   // Generate code via API
-  const generateCode = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
+  const generateCode = async (
+    prompt: string,
+    model: string = "llama-3.3-70b-versatile"
+  ) => {
     try {
-      console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt,
-          model,
-        }),
-      });
-  
+      console.log(
+        `Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`
+      );
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            model,
+          }),
+        }
+      );
+
       if (!response.ok) {
         throw new Error(`Failed to generate code: ${response.status}`);
       }
-  
+
       const data = await response.json();
       console.log(data);
       console.log(cleaner(data.code));
       return cleaner(data.code);
     } catch (error) {
-      console.error('Error generating code:', error);
+      console.error("Error generating code:", error);
       throw error;
     }
   };
-  
+
   // Render animation via API
   const renderAnimation = async (code: string): Promise<string> => {
     try {
-      console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: cleaner(code),
-          file_name: "GenScene.py",
-          file_class: "GenScene",
-          iteration: Math.floor(Math.random() * 1000000),
-          project_name: "GenScene",
-        }),
-      });
-  
+      console.log(
+        `Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`
+      );
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: cleaner(code),
+            file_name: "GenScene.py",
+            file_class: "GenScene",
+            iteration: Math.floor(Math.random() * 1000000),
+            project_name: "GenScene",
+          }),
+        }
+      );
+
       if (!response.ok) {
         throw new Error(`Failed to render animation: ${response.status}`);
       }
-  
+
       const data = await response.json();
       return data.video_url;
     } catch (error) {
-      console.error('Error rendering animation:', error);
+      console.error("Error rendering animation:", error);
       throw error;
     }
   };
 
   // Process a user message with API calls
-  const processUserMessage = useCallback(async (prompt: string, model?: string) => {
-    // Generate a unique request ID based on prompt and model to prevent duplicate calls
-    const requestId = `${prompt}_${model || 'default'}`; 
-    
-    // Don't make API calls if we've already sent the initial request
-    if (isInitialRequestSent && initialPrompt === prompt) {
-      console.log("Skipping duplicate API call for initial prompt");
-      return;
-    }
-    
-    setProcessingStage(ProcessingStage.GeneratingCode);
-    setAIResponse({
-      status: "generating"
-    });
-    
-    try {
-      // Check cached data first - only for exact prompt matches
-      const cachedData = cacheManager.getCachedData(chatId);
-      if (cachedData.code && cachedData.videoUrl && cachedData.prompt === prompt) {
-        console.log("Using cached data for exact prompt match");
-        setAIResponse({
-          code: cachedData.code,
-          videoUrl: cachedData.videoUrl,
-          status: "complete"
-        });
-        setProcessingStage(ProcessingStage.Complete);
-        
+  const processUserMessage = useCallback(
+    async (prompt: string, model?: string) => {
+      // Generate a unique request ID based on prompt and model to prevent duplicate calls
+      const requestId = `${prompt}_${model || "default"}`;
+
+      // Don't make API calls if we've already sent the initial request
+      if (isInitialRequestSent && initialPrompt === prompt) {
+        console.log("Skipping duplicate API call for initial prompt");
         return;
       }
-      
-      // Store the prompt in cache
-      cacheManager.storePrompt(chatId, prompt);
-      
-      // Determine which model to use - prioritize the explicit model parameter
-      const modelToUse = model || cachedData.model || 'gemma-2-9b-it';
-      
-      // Store the model
-      cacheManager.storeModel(chatId, modelToUse);
-      
-      // Step 1: Generate code
-      const generatedCode = await generateCode(prompt, modelToUse);
-      if (!generatedCode) {
-        throw new Error("Failed to generate code");
-      }
 
-      // Add AI response to chat about the generated code
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        role: "ai",
-        content: `I've created a Manim animation based on your prompt: "${prompt}". 
+      setProcessingStage(ProcessingStage.GeneratingCode);
+      setAIResponse({
+        status: "generating",
+      });
+
+      try {
+        // Check cached data first - only for exact prompt matches
+        const cachedData = cacheManager.getCachedData(chatId);
+        if (
+          cachedData.code &&
+          cachedData.videoUrl &&
+          cachedData.prompt === prompt
+        ) {
+          console.log("Using cached data for exact prompt match");
+          setAIResponse({
+            code: cachedData.code,
+            videoUrl: cachedData.videoUrl,
+            status: "complete",
+          });
+          setProcessingStage(ProcessingStage.Complete);
+
+          return;
+        }
+
+        // Store the prompt in cache
+        cacheManager.storePrompt(chatId, prompt);
+
+        // Determine which model to use - prioritize the explicit model parameter
+        const modelToUse = model || cachedData.model || "gemma-2-9b-it";
+
+        // Store the model
+        cacheManager.storeModel(chatId, modelToUse);
+
+        // Step 1: Generate code
+        const generatedCode = await generateCode(prompt, modelToUse);
+        if (!generatedCode) {
+          throw new Error("Failed to generate code");
+        }
+
+        // Add AI response to chat about the generated code
+        const aiMessage: Message = {
+          id: `ai-${Date.now()}`,
+          role: "ai",
+          content: `I've created a Manim animation based on your prompt: "${prompt}". 
 
 This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
 
 I'm now rendering this animation for you...`,
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
-      setAIResponse({
-        code: generatedCode,
-        status: "rendering"
-      });
+          timestamp: new Date(),
+        };
 
-      // Cache the generated code
-      cacheManager.storeCode(chatId, generatedCode);
-      
-      // Step 2: Start rendering animation
-      setProcessingStage(ProcessingStage.RenderingAnimation);
-      
-      // Step 3: Render animation using API
-      const videoUrl = await renderAnimation(generatedCode);
-      
-      // Clear any pending timeouts
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        setMessages((prev) => [...prev, aiMessage]);
+        setAIResponse({
+          code: generatedCode,
+          status: "rendering",
+        });
+
+        // Cache the generated code
+        cacheManager.storeCode(chatId, generatedCode);
+
+        // Step 2: Start rendering animation
+        setProcessingStage(ProcessingStage.RenderingAnimation);
+
+        // Step 3: Render animation using API
+        const videoUrl = await renderAnimation(generatedCode);
+
+        // Clear any pending timeouts
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        // Set render progress to 100% when complete
+        setRenderProgress(100);
+
+        // Cache the video URL
+        cacheManager.storeVideo(chatId, videoUrl);
+
+        // Update with the video URL once rendering is complete
+        setAIResponse((prev) => ({
+          ...prev!,
+          videoUrl,
+          status: "complete",
+        }));
+
+        setProcessingStage(ProcessingStage.Complete);
+      } catch (error) {
+        console.error("Error processing request:", error);
+        setAIResponse({
+          error: "Failed to generate or render animation. Please try again.",
+          status: "error",
+        });
+        setProcessingStage(ProcessingStage.Error);
+      } finally {
+        // Mark that we've made the initial API call
+        if (initialPrompt === prompt) {
+          setIsInitialRequestSent(true);
+        }
       }
-      
-      // Set render progress to 100% when complete
-      setRenderProgress(100);
-      
-      // Cache the video URL
-      cacheManager.storeVideo(chatId, videoUrl);
-      
-      // Update with the video URL once rendering is complete
-      setAIResponse(prev => ({
-        ...prev!,
-        videoUrl,
-        status: "complete"
-      }));
-      
-      setProcessingStage(ProcessingStage.Complete);
-      
-    } catch (error) {
-      console.error("Error processing request:", error);
-      setAIResponse({
-        error: "Failed to generate or render animation. Please try again.",
-        status: "error"
-      });
-      setProcessingStage(ProcessingStage.Error);
-    } finally {
-      // Mark that we've made the initial API call
-      if (initialPrompt === prompt) {
-        setIsInitialRequestSent(true);
-      }
-    }
-  }, [initialPrompt, isInitialRequestSent, chatId]);
+    },
+    [initialPrompt, isInitialRequestSent, chatId]
+  );
 
   // Use memoized dependencies to prevent useEffect dependency issues
   const memoizedDeps = useCallback(() => {
     return {
       chatId,
       initialPrompt,
-      processUserMessageFn: processUserMessage
-    }
+      processUserMessageFn: processUserMessage,
+    };
   }, [chatId, initialPrompt, processUserMessage]);
-  
+
   // Cache the memoized dependencies
   const deps = useRef(memoizedDeps()).current;
 
@@ -243,11 +270,11 @@ I'm now rendering this animation for you...`,
   useEffect(() => {
     const loadInitialPrompt = async () => {
       setIsLoadingInitialMessage(true);
-      
+
       // First check URL parameters
       let promptToUse = initialPrompt;
-      let modelToUse = searchParams.get('model');
-      
+      let modelToUse = searchParams.get("model");
+
       // If not found in URL, try localStorage via cacheManager
       if (!promptToUse || !modelToUse) {
         const cachedData = cacheManager.getCachedData(deps.chatId);
@@ -261,29 +288,29 @@ I'm now rendering this animation for you...`,
 
       // Ensure we have a default model if none was found
       if (!modelToUse) {
-        modelToUse = 'llama-3.3-70b-versatile';
+        modelToUse = "llama-3.3-70b-versatile";
       }
-      
+
       if (promptToUse) {
         // Add initial user message with a small delay to allow component to mount
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
         const userMessage: Message = {
           id: `user-${Date.now()}`,
           role: "user",
           content: promptToUse,
           timestamp: new Date(),
         };
-        
+
         setMessages([userMessage]);
         deps.processUserMessageFn(promptToUse, modelToUse);
       }
-      
+
       setIsLoadingInitialMessage(false);
     };
-    
+
     loadInitialPrompt();
-    
+
     // Cleanup function
     return () => {
       if (timeoutRef.current) {
@@ -298,33 +325,36 @@ I'm now rendering this animation for you...`,
     const pageLoadTimeout = setTimeout(() => {
       setPageLoading(false);
     }, 500);
-    
+
     return () => clearTimeout(pageLoadTimeout);
   }, []);
 
   // Enhanced scroll behavior with better detection
   useEffect(() => {
     if (!messagesContainerRef.current) return;
-        
+
     // When using shadcn ScrollArea, we need to access the scrollable element differently
-    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollAreaElement = messagesContainerRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    );
     if (!scrollAreaElement) return;
-    
+
     const handleScrollCheck = () => {
-      const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
-      
+      const { scrollHeight, clientHeight, scrollTop } =
+        scrollAreaElement as HTMLDivElement;
+
       // More precise check if user is at the bottom (within 150px)
       const isNearBottom = scrollHeight <= scrollTop + clientHeight + 150;
-      
+
       if (isNearBottom) {
         // Use a small timeout to ensure DOM has updated
         setTimeout(() => {
           (scrollAreaElement as HTMLDivElement).scrollTo({
             top: scrollHeight,
-            behavior: 'smooth'
+            behavior: "smooth",
           });
         }, 100);
-        
+
         setShowScrollButton(false);
       } else if (messages.length > 0) {
         // Only show scroll button if we have messages and user has scrolled up
@@ -334,44 +364,44 @@ I'm now rendering this animation for you...`,
 
     // Initial check
     handleScrollCheck();
-    
+
     return () => {
       // No event listeners to clean up in this effect
     };
   }, [messages]);
-  
+
   // // Smoother scroll to bottom with easing
   // const scrollToBottom = useCallback(() => {
   //   if (!messagesContainerRef.current) return;
-    
+
   //   // Get the actual scrollable viewport from shadcn ScrollArea
   //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
   //   if (!scrollAreaElement) return;
-    
+
   //   const scrollHeight = (scrollAreaElement as HTMLDivElement).scrollHeight;
-    
+
   //   (scrollAreaElement as HTMLDivElement).scrollTo({
   //     top: scrollHeight,
   //     behavior: 'smooth'
   //   });
-    
+
   //   setShowScrollButton(false);
   // }, []);
 
   // // Scroll to top for long conversations
   // const scrollToTop = useCallback(() => {
   //   if (!messagesContainerRef.current) return;
-    
+
   //   // Get the actual scrollable viewport from shadcn ScrollArea
   //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
   //   if (!scrollAreaElement) return;
-    
+
   //   (scrollAreaElement as HTMLDivElement).scrollTo({
   //     top: 0,
   //     behavior: 'smooth'
   //   });
   // }, []);
-  
+
   // // Update render progress with memoized function
   const updateRenderProgress = useCallback(() => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
@@ -385,82 +415,91 @@ I'm now rendering this animation for you...`,
       }
     }
   }, [processingStage, renderProgress]);
-  
+
   // Complete rendering with memoized function
   const completeRendering = useCallback(() => {
     setProcessingStage(ProcessingStage.Complete);
-    setAIResponse(prev => ({
+    setAIResponse((prev) => ({
       ...prev!,
-      status: "complete"
+      status: "complete",
     }));
   }, []);
-  
+
   // Handle sending follow-up messages and manage the full workflow
-  const handleSendMessage = useCallback(async (message: string, model?: string) => {
-    if (!message.trim()) return;
+  const handleSendMessage = useCallback(
+    async (message: string, model?: string) => {
+      if (!message.trim()) return;
 
-    // 1. Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: message,
-      timestamp: new Date(),
-    };
-    setMessages(prev => [...prev, userMessage]);
+      // 1. Add user message
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: message,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
 
-    // 2. Add AI message: Generating code...
-    const aiMsgId = `ai-${Date.now()}`;
-    const aiMessage: Message = {
-      id: aiMsgId,
-      role: "ai",
-      content: "Generating code for your animation...",
-      timestamp: new Date(),
-    };
-    setMessages(prev => [...prev, aiMessage]);
-    setAIResponse({ code: "", videoUrl: "", status: "generating" });
-    setProcessingStage(ProcessingStage.GeneratingCode);
+      // 2. Add AI message: Generating code...
+      const aiMsgId = `ai-${Date.now()}`;
+      const aiMessage: Message = {
+        id: aiMsgId,
+        role: "ai",
+        content: "Generating code for your animation...",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setAIResponse({ code: "", videoUrl: "", status: "generating" });
+      setProcessingStage(ProcessingStage.GeneratingCode);
 
-    try {
-      // 3. Generate code
-      const code = await generateCode(message, model || "llama-3.3-70b-versatile");
-      setAIResponse(prev => ({ ...prev, code, status: "rendering" }));
+      try {
+        // 3. Generate code
+        const code = await generateCode(
+          message,
+          model || "llama-3.3-70b-versatile"
+        );
+        setAIResponse((prev) => ({ ...prev, code, status: "rendering" }));
 
-      // 4. Update AI message: Rendering animation...
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === aiMsgId
-            ? { ...msg, content: "Rendering animation..." }
-            : msg
-        )
-      );
+        // 4. Update AI message: Rendering animation...
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMsgId
+              ? { ...msg, content: "Rendering animation..." }
+              : msg
+          )
+        );
 
-      // 5. Render animation
-      setProcessingStage(ProcessingStage.RenderingAnimation);
-      const videoUrl = await renderAnimation(code);
-      setAIResponse(prev => ({ ...prev, videoUrl, status: "complete" }));
+        // 5. Render animation
+        setProcessingStage(ProcessingStage.RenderingAnimation);
+        const videoUrl = await renderAnimation(code);
+        setAIResponse((prev) => ({ ...prev, videoUrl, status: "complete" }));
 
-      // 6. Update AI message: Here's your animation!
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === aiMsgId
-            ? { ...msg, content: "Here's your animation!" }
-            : msg
-        )
-      );
-      setProcessingStage(ProcessingStage.Complete);
-    } catch (err) {
-      setAIResponse({ error: "Failed to generate or render animation.", status: "error" });
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === aiMsgId
-            ? { ...msg, content: "Something went wrong. Please try again." }
-            : msg
-        )
-      );
-      setProcessingStage(ProcessingStage.Error);
-    }
-  }, []);
-  
+        // 6. Update AI message: Here's your animation!
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMsgId
+              ? { ...msg, content: "Here's your animation!" }
+              : msg
+          )
+        );
+        setProcessingStage(ProcessingStage.Complete);
+      } catch (err) {
+        setAIResponse({
+          error: "Failed to generate or render animation.",
+          status: "error",
+        });
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMsgId
+              ? { ...msg, content: "Something went wrong. Please try again." }
+              : msg
+          )
+        );
+        setProcessingStage(ProcessingStage.Error);
+      }
+    },
+    []
+  );
+
   // Get status message based on current processing stage
   const getStatusMessage = useCallback(() => {
     switch (processingStage) {
@@ -474,21 +513,21 @@ I'm now rendering this animation for you...`,
         return "";
     }
   }, [processingStage, renderProgress]);
-  
+
   // Retry in case of error
   const handleRetry = useCallback(() => {
     if (messages.length > 0) {
-      const lastUserMessage = messages.filter(m => m.role === "user").pop();
+      const lastUserMessage = messages.filter((m) => m.role === "user").pop();
       if (lastUserMessage) {
         setIsInitialRequestSent(false); // Reset flag to allow retry
         processUserMessage(lastUserMessage.content);
       }
     }
   }, [messages, processUserMessage]);
-  
+
   // Go back to landing page
   const handleBack = useCallback(() => {
-    router.push('/');
+    router.push("/");
   }, [router]);
 
   // Scroll to messagesEnd when new messages are added
@@ -497,32 +536,32 @@ I'm now rendering this animation for you...`,
       // Find the scroll viewport and scroll to the messages end
       const scrollToView = () => {
         if (!messagesContainerRef.current) return;
-        
-        const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+
+        const scrollAreaElement = messagesContainerRef.current.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        );
         if (!scrollAreaElement) return;
-        
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       };
-      
+
       // Small delay to ensure DOM is updated
       const scrollTimeout = setTimeout(scrollToView, 100);
       return () => clearTimeout(scrollTimeout);
     }
   }, [messages]);
 
-
-  
   return (
-    <div className="flex flex-col h-full rounded-2xl">      
+    <div className="flex flex-col h-full rounded-2xl">
       {/* Main content */}
-      <motion.div 
-        className="flex flex-1 relative rounded-2xl overflow-hidden"
+      <motion.div
+        className="flex flex-1 relative rounded-2xl overflow-hidden gap-3"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
         {/* Left side - Chat area */}
-        <div className="w-2/5 border-2 border-blue-500 justify-stretch bg-background rounded-2xl flex border-spacing-4 mx-4 flex-col h-full">
+        <div className="w-1/3 justify-stretch bg-background rounded-2xl flex flex-col h-full">
           {/* Page loading state */}
           {pageLoading ? (
             <div className="flex-1 flex items-center justify-center">
@@ -553,8 +592,7 @@ I'm now rendering this animation for you...`,
             </div>
           ) : (
             <>
-              {/* Messages container with enhanced scrolling using ScrollArea */}
-              <ScrollArea 
+              <ScrollArea
                 ref={messagesContainerRef}
                 className="flex-1 overflow-hidden relative"
                 scrollHideDelay={100}
@@ -562,50 +600,55 @@ I'm now rendering this animation for you...`,
               >
                 <div className="py-4 space-y-4">
                   <div className="space-y-4 mx-auto max-w-[95%]">
-                    {/* Messages with AnimatePresence for better transitions */}
                     <AnimatePresence initial={false}>
                       {messages.map((message) => (
-                        <motion.div 
+                        <motion.div
                           key={message.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, height: 0 }}
-                          transition={{ 
+                          transition={{
                             duration: 0.4,
-                            ease: [0.25, 0.1, 0.25, 1.0]
+                            ease: [0.25, 0.1, 0.25, 1.0],
                           }}
                         >
-                          <ChatMessage 
-                            content={message.content} 
+                          <ChatMessage
+                            content={message.content}
                             role={message.role}
-                            isLoading={message.role === "ai" && processingStage === ProcessingStage.GeneratingCode && messages[messages.length - 1].id === message.id}
+                            isLoading={
+                              message.role === "ai" &&
+                              processingStage ===
+                                ProcessingStage.GeneratingCode &&
+                              messages[messages.length - 1].id === message.id
+                            }
                           />
                         </motion.div>
                       ))}
                     </AnimatePresence>
-                    
+
                     {/* AI is responding - show loading indicator if no messages yet */}
                     <AnimatePresence>
-                      {(isProcessing || isLoadingInitialMessage) && messages.length === 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <ChatMessage 
-                            content="" 
-                            role="ai" 
-                            isLoading={true} 
-                          />
-                        </motion.div>
-                      )}
+                      {(isProcessing || isLoadingInitialMessage) &&
+                        messages.length === 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <ChatMessage
+                              content=""
+                              role="ai"
+                              isLoading={true}
+                            />
+                          </motion.div>
+                        )}
                     </AnimatePresence>
-                    
+
                     {/* Show code block if available */}
                     <AnimatePresence>
                       {aiResponse?.code && (
-                        <motion.div 
+                        <motion.div
                           className="mt-6 relative mx-4"
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -623,7 +666,7 @@ I'm now rendering this animation for you...`,
                   </div>
                 </div>
               </ScrollArea>
-              
+
               {/* New message button with enhanced animation */}
               {/* <AnimatePresence>
                 {showScrollButton && (
@@ -648,30 +691,30 @@ I'm now rendering this animation for you...`,
                */}
               {/* Input field - fixed at bottom - show only when page is loaded */}
               {!pageLoading && (
-                <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
-                  <div className="w-full mx-auto">
-                    <div className="shadow-xl rounded-xl">
-                      <ChatPageInput 
-                        prompt="" 
-                        chatId={chatId}
-                        defaultModel={cacheManager.getCachedData(chatId).model || 'llama-3.3-70b-versatile'}
-                        onSend={(message, model) => {
-                          handleSendMessage(message, model);
-                        }}
-                        isDisabled={isProcessing} 
-                      />
-                    </div>
+                <div className="w-full mx-auto">
+                  <div className="shadow-xl rounded-xl">
+                    <ChatPageInput
+                      prompt=""
+                      chatId={chatId}
+                      defaultModel={
+                        cacheManager.getCachedData(chatId).model ||
+                        "llama-3.3-70b-versatile"
+                      }
+                      onSend={(message, model) => {
+                        handleSendMessage(message, model);
+                      }}
+                      isDisabled={isProcessing}
+                    />
                   </div>
                 </div>
               )}
             </>
           )}
         </div>
-        
+
         {/* Right side - Video area */}
-        <div className="w-3/5 flex flex-col h-full overflow-hidden bg-zinc-800 rounded-2xl">
+        <div className="w-full flex flex-col h-full overflow-hidden bg-secondary/30 border rounded-xl">
           <div className="flex-1 p-6">
-            {/* Processing status indicator */}
             {isProcessing && (
               <div className="mb-6">
                 <div className="text-sm text-gray-400 flex items-center">
@@ -680,13 +723,13 @@ I'm now rendering this animation for you...`,
                 </div>
               </div>
             )}
-            
+
             {/* Show content based on state - Removed AnimatePresence */}
             {/* Show video if available */}
             {aiResponse?.videoUrl ? (
               <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="w-full max-w-[90%] flex justify-center">
-                  <VideoCard 
+                  <VideoCard
                     videoUrl={aiResponse.videoUrl || ""}
                     isLoading={false}
                   />
@@ -695,7 +738,6 @@ I'm now rendering this animation for you...`,
             ) : !isProcessing && !aiResponse?.error ? (
               // Empty state
               <div className="flex-1 flex flex-col items-center justify-center text-gray-500 min-h-[500px]">
-                
                 <div className="text-center p-8 border border-dashed border-gray-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
                   <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
                     <Play className="h-8 w-8 text-pink-400" />
@@ -704,7 +746,9 @@ I'm now rendering this animation for you...`,
                     Enter a prompt to generate a Manim animation
                   </p>
                   <p className="text-sm text-gray-500 mt-3 leading-relaxed">
-                    Try something like: "Create a bouncing ball animation with trail effects", "Animate the quadratic formula", or "Show a sine wave transform"
+                    Try something like: "Create a bouncing ball animation with
+                    trail effects", "Animate the quadratic formula", or "Show a
+                    sine wave transform"
                   </p>
                 </div>
               </div>
@@ -712,20 +756,17 @@ I'm now rendering this animation for you...`,
               // Show loading state when processing
               <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="w-full max-w-[90%]">
-                  <VideoCard 
-                    videoUrl="" 
-                    isLoading={true}
-                  />
+                  <VideoCard videoUrl="" isLoading={true} />
                 </div>
               </div>
             ) : null}
-            
+
             {/* Show error if any */}
             {aiResponse?.error && (
               <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
                 <p className="mb-3">{aiResponse.error}</p>
-                <button 
-                  onClick={handleRetry} 
+                <button
+                  onClick={handleRetry}
                   className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
                 >
                   <RefreshCw className="h-4 w-4" /> Try Again

@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "@/components/Header";
-import ConvexClientProvider from '@/providers/ClerkConvexProvider'
-
+import ConvexClientProvider from "@/providers/ClerkConvexProvider";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,10 +16,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-
 const metadata: Metadata = {
   title: "Manim AI",
-  description: "Create stunning animations with Manim the powerful open-source animation engine.",
+  description:
+    "Create stunning animations with Manim the powerful open-source animation engine.",
 };
 
 export default function RootLayout({
@@ -33,14 +33,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ClerkProvider>
-          <ConvexClientProvider>
-          <div className="fixed top-0 left-0 right-0 z-50">
-              <Header />
-            </div>
-            <main className="flex-1 bg-background min-h-screen">
-              {children}
-            </main>
-          </ConvexClientProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark">
+            <ConvexClientProvider>
+                <Header />
+              <main className="">{children}</main>
+            </ConvexClientProvider>
+          </ThemeProvider>
         </ClerkProvider>
       </body>
     </html>
