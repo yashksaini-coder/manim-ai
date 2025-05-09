@@ -107,40 +107,46 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
         )}
         
         {/* Video */}
-        <video
-          ref={videoRef}
-          src={videoUrl || ""}
-          controls
-          autoPlay
-          className="w-full h-full bg-black rounded-lg"
-        >
-          Your browser does not support the video tag.
-        </video>
+        {videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            autoPlay
+            className="w-full h-full bg-black rounded-lg"
+          >
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <div className="w-full aspect-video bg-black rounded-lg"></div>
+        )}
         
         {/* Control overlay */}
-        <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-center z-20">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleDownload}
-            className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
-            aria-label="Download video"
-          >
-            <Download className="h-4 w-4" />
-          </motion.button>
-          
-          <motion.a
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            href={videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
-            title="Open in new tab"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </motion.a>
-        </div>
+        {videoUrl && (
+          <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-center z-20">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleDownload}
+              className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
+              aria-label="Download video"
+            >
+              <Download className="h-4 w-4" />
+            </motion.button>
+            
+            <motion.a
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-8 w-8 rounded-full bg-[#0f0f0f] cursor-pointer hover:text-green-400 text-white flex items-center justify-center transition-all duration-200"
+              title="Open in new tab"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </motion.a>
+          </div>
+        )}
       </div>
       
       {/* Empty state that shows when no video */}

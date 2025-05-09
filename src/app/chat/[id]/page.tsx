@@ -10,8 +10,8 @@ import AI_Prompt from '@/components/ai-chat-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useParams } from 'next/navigation';
-import { generateCode, renderAnimation, cacheManager } from '@/lib/api-helpers';
-
+import { generateCode, renderAnimation, cacheManager, cleanCode } from '@/lib/api-helpers';
+import { useUser } from '@clerk/nextjs';
 // Types for our messages
 interface Message {
   id: string;
@@ -61,8 +61,12 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   // Reference to timeout for cleanup
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const cleaner = (code: string) => {
+    return code.replace(/```python/g, "").replace(/```/g, "");
+  };
+
   // Process a user message with API calls
-  const processUserMessage = useCallback(async (prompt: string) => {
+  const processUserMessage = useCallback(async (prompt: string, model?: string) => {
     // Don't make API calls if we've already sent the initial request
     if (isInitialRequestSent && initialPrompt === prompt) {
       console.log("Skipping duplicate API call for initial prompt");
@@ -92,28 +96,65 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         }
       }
       
-      // Step 1: Generate code using API
-      setProcessingStage(ProcessingStage.GeneratingCode);
-      const generatedCode = await generateCode(prompt);
+      const generateCode = async (prompt: string, model: string = 'gemma-2-9b-it') => {
+        try {
+          console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              prompt,
+              model,
+            }),
+          });
       
-      // Add AI response to chat about the generated code
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        role: "ai",
-        content: `I've created a Manim animation based on your prompt: "${prompt}". 
-
-This animation demonstrates a simple transformation from a square to a circle. The code uses Manim's \`Create\` method to display a blue square, and then uses the \`Transform\` method to smoothly convert it into a red circle.
-
-I'm now rendering this animation for you...`,
-        timestamp: new Date(),
+          if (!response.ok) {
+            throw new Error(`Failed to generate code: ${response.status}`);
+          }
+      
+          const data = await response.json();
+          console.log(data);
+          console.log(cleaner(data.code));
+          return cleaner(data.code);
+        } catch (error) {
+          console.error('Error generating code:', error);
+        }
       };
       
-      setMessages(prev => [...prev, aiMessage]);
-      setAIResponse({
-        code: generatedCode,
-        status: "rendering"
-      });
+      /**
+       * Renders a Manim animation from code
+       */
+      const renderAnimation = async (code: string): Promise<string> => {
+        
+        
+        try {
+          console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: cleaner(code)
+            }),
+          });
       
+          if (!response.ok) {
+            throw new Error(`Failed to render animation: ${response.status}`);
+          }
+      
+          const data = await response.json();
+          return data.video_url;
+        } catch (error) {
+          console.error('Error rendering animation:', error);
+          
+          throw error;
+        }
+      };
+
+      const generatedCode = await generateCode(prompt);
+      if (!generatedCode) {
+        throw new Error("Failed to generate code");
+      }
+
       // Cache the generated code
       cacheManager.storeCode(chatId, generatedCode);
         
@@ -122,6 +163,14 @@ I'm now rendering this animation for you...`,
       
       // Step 3: Render animation using API
       const videoUrl = await renderAnimation(generatedCode);
+      
+      // Clear any pending timeouts
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Set render progress to 100% when complete
+      setRenderProgress(100);
       
       // Cache the video URL
       cacheManager.storeVideo(chatId, videoUrl);
@@ -150,17 +199,30 @@ I'm now rendering this animation for you...`,
     }
   }, [initialPrompt, isInitialRequestSent, chatId]);
 
-  // Handle initial prompt from URL or localStorage
+  // Use memoized dependencies to prevent useEffect dependency issues
+  const memoizedDeps = useCallback(() => {
+    return {
+      chatId,
+      initialPrompt,
+      processUserMessageFn: processUserMessage
+    }
+  }, [chatId, initialPrompt, processUserMessage]);
+  
+  // Cache the memoized dependencies
+  const deps = useRef(memoizedDeps()).current;
+
+  // Use useEffect to set the initial value when prompt changes
   useEffect(() => {
     const loadInitialPrompt = async () => {
       setIsLoadingInitialMessage(true);
       
       // First check URL parameters
       let promptToUse = initialPrompt;
+      let modelToUse = searchParams.get('model') || 'gemma-2-9b-it';
       
       // If not found in URL, try localStorage via cacheManager
       if (!promptToUse) {
-        const cachedData = cacheManager.getCachedData(chatId);
+        const cachedData = cacheManager.getCachedData(deps.chatId);
         if (cachedData.prompt) {
           promptToUse = cachedData.prompt;
         }
@@ -178,7 +240,7 @@ I'm now rendering this animation for you...`,
         };
         
         setMessages([userMessage]);
-        processUserMessage(promptToUse);
+        deps.processUserMessageFn(promptToUse, modelToUse);
       }
       
       setIsLoadingInitialMessage(false);
@@ -192,7 +254,7 @@ I'm now rendering this animation for you...`,
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [chatId, initialPrompt, processUserMessage]);
+  }, [deps, searchParams]);
 
   // Handle initial page load animation
   useEffect(() => {
@@ -321,7 +383,7 @@ I'm now rendering this animation for you...`,
   }, []);
   
   // Handle sending follow-up messages
-  const handleSendMessage = useCallback((message: string) => {
+  const handleSendMessage = useCallback((message: string, model?: string) => {
     if (!message.trim()) return;
     
     const userMessage: Message = {
@@ -335,7 +397,7 @@ I'm now rendering this animation for you...`,
     setRenderProgress(0);
     
     // Store the message and process it
-    processUserMessage(message);
+    processUserMessage(message, model);
   }, [processUserMessage]);
   
   // Get status message based on current processing stage
@@ -528,7 +590,10 @@ I'm now rendering this animation for you...`,
                     <div className="shadow-xl rounded-xl">
                       <AI_Prompt 
                         prompt="" 
-                        onSend={handleSendMessage}
+                        onSend={(message) => {
+                          const model = searchParams.get('model') || undefined;
+                          handleSendMessage(message, model);
+                        }}
                         isDisabled={isProcessing} 
                       />
                     </div>

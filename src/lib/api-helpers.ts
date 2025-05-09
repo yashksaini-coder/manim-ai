@@ -2,7 +2,32 @@
  * API helper functions for Manim AI
  */
 
+// Set this to true to use mock data when the server is not available
+const USE_MOCK_DATA = true;
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_SERVER_PROCESSOR || 'http://localhost:5000';
+
+// Mock data for development when server is not available
+const MOCK_CODE = `from manim import *
+
+class GenScene(Scene):
+    def construct(self):
+        # Create a blue square
+        square = Square(color=BLUE, fill_opacity=0.5)
+        
+        # Display the square with an animation
+        self.play(Create(square))
+        
+        # Define a red circle
+        circle = Circle(color=RED, fill_opacity=0.5)
+        
+        # Transform the square into the circle
+        self.play(Transform(square, circle))
+        
+        # Wait a bit before ending the animation
+        self.wait()`;
+
+const MOCK_VIDEO_URL = "https://storage.googleapis.com/manim-engine-examples/basic_example.mp4";
 
 /**
  * Cleans code output by removing markdown code blocks
@@ -16,6 +41,7 @@ export const cleanCode = (code: string): string => {
  */
 export const generateCode = async (prompt: string, model: string = 'gemma-2-9b-it'): Promise<string> => {
   try {
+    console.log(`Connecting to ${BACKEND_URL}/v1/generate/code`);
     const response = await fetch(`${BACKEND_URL}/v1/generate/code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -33,7 +59,15 @@ export const generateCode = async (prompt: string, model: string = 'gemma-2-9b-i
     return cleanCode(data.code);
   } catch (error) {
     console.error('Error generating code:', error);
-    throw error;
+    
+    if (!USE_MOCK_DATA) {
+      throw error;
+    }
+    
+    // Fallback to mock data if real request fails
+    console.log("Falling back to mock data after error");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return MOCK_CODE;
   }
 };
 
@@ -41,12 +75,24 @@ export const generateCode = async (prompt: string, model: string = 'gemma-2-9b-i
  * Renders a Manim animation from code
  */
 export const renderAnimation = async (code: string): Promise<string> => {
+  // If using mock data, return mock video URL after a delay
+  if (USE_MOCK_DATA) {
+    console.log("Using mock video data as server is not available");
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate rendering time
+    return MOCK_VIDEO_URL;
+  }
+  
   try {
+    console.log(`Connecting to ${BACKEND_URL}/v1/render/video`);
     const response = await fetch(`${BACKEND_URL}/v1/render/video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        code
+        code,
+        file_name: "GenScene.py",
+        file_class: "GenScene",
+        iteration: Math.floor(Math.random() * 1000000),
+        project_name: "GenScene",
       }),
     });
 
@@ -58,7 +104,15 @@ export const renderAnimation = async (code: string): Promise<string> => {
     return data.video_url;
   } catch (error) {
     console.error('Error rendering animation:', error);
-    throw error;
+    
+    if (!USE_MOCK_DATA) {
+      throw error;
+    }
+    
+    // Fallback to mock data if real request fails
+    console.log("Falling back to mock video data after error");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return MOCK_VIDEO_URL;
   }
 };
 

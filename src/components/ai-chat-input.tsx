@@ -56,7 +56,7 @@ const GROQ_SVG = (
 
 export default function AI_Prompt({prompt, onSend, isDisabled}: {
     prompt: string;
-    onSend?: (message: string) => void;
+    onSend?: (message: string, model?: string) => void;
     isDisabled?: boolean;
 }) {
     const [value, setValue] = useState(prompt || "");
@@ -145,7 +145,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
 
         // If onSend prop is provided, use it instead of default behavior
         if (onSend) {
-            onSend(value);
+            onSend(value, selectedModel);
             setValue(""); // Clear input after sending
             return;
         }
@@ -164,7 +164,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Redirect to the chat page with the prompt as a query parameter
-            router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}`);
+            router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${selectedModel}`);
             
             // We don't need to make API calls here - they will be handled by the chat page
             // This prevents duplicate API calls and ensures we follow the SaaS workflow
