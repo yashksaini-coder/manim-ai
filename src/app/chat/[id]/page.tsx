@@ -395,62 +395,71 @@ I'm now rendering this animation for you...`,
     }));
   }, []);
   
-  // Handle sending follow-up messages
-  const handleSendMessage = useCallback((message: string, model?: string) => {
+  // Handle sending follow-up messages and manage the full workflow
+  const handleSendMessage = useCallback(async (message: string, model?: string) => {
     if (!message.trim()) return;
-    
+
+    // 1. Add user message
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
       content: message,
       timestamp: new Date(),
     };
-    
     setMessages(prev => [...prev, userMessage]);
-    setRenderProgress(0);
-    
-    // Make sure we have the chat id from params
-    const currentChatId = chatId || '';
-    
-    // Check if we already have cached data for this prompt
-    const cachedData = cacheManager.getCachedData(currentChatId);
-    if (cachedData.code && cachedData.videoUrl && cachedData.prompt === message) {
-      console.log("Using cached data for existing prompt");
-      // If we have cached data for this exact prompt, use it
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        role: "ai",
-        content: `I've created a Manim animation based on your prompt: "${message}". 
 
-This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
+    // 2. Add AI message: Generating code...
+    const aiMsgId = `ai-${Date.now()}`;
+    const aiMessage: Message = {
+      id: aiMsgId,
+      role: "ai",
+      content: "Generating code for your animation...",
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, aiMessage]);
+    setAIResponse({ code: "", videoUrl: "", status: "generating" });
+    setProcessingStage(ProcessingStage.GeneratingCode);
 
-Here's your animation:`,
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
-      
-      setAIResponse({
-        code: cachedData.code,
-        videoUrl: cachedData.videoUrl,
-        status: "complete"
-      });
-      
+    try {
+      // 3. Generate code
+      const code = await generateCode(message, model || "llama-3.3-70b-versatile");
+      setAIResponse(prev => ({ ...prev, code, status: "rendering" }));
+
+      // 4. Update AI message: Rendering animation...
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, content: "Rendering animation..." }
+            : msg
+        )
+      );
+
+      // 5. Render animation
+      setProcessingStage(ProcessingStage.RenderingAnimation);
+      const videoUrl = await renderAnimation(code);
+      setAIResponse(prev => ({ ...prev, videoUrl, status: "complete" }));
+
+      // 6. Update AI message: Here's your animation!
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, content: "Here's your animation!" }
+            : msg
+        )
+      );
       setProcessingStage(ProcessingStage.Complete);
-      return;
+    } catch (err) {
+      setAIResponse({ error: "Failed to generate or render animation.", status: "error" });
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, content: "Something went wrong. Please try again." }
+            : msg
+        )
+      );
+      setProcessingStage(ProcessingStage.Error);
     }
-    
-    // Store the message in localStorage
-    cacheManager.storePrompt(currentChatId, message);
-    
-    // Store the model if provided
-    if (model) {
-      cacheManager.storeModel(currentChatId, model);
-    }
-    
-    // Process the message using our API functions
-    processUserMessage(message, model);
-  }, [processUserMessage, chatId]);
+  }, []);
   
   // Get status message based on current processing stage
   const getStatusMessage = useCallback(() => {

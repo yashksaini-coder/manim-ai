@@ -12,7 +12,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cacheManager, generateCode, renderAnimation } from "@/lib/api-helpers";
+import { cacheManager } from "@/lib/api-helpers";
 
 const OPENAI_SVG = (
     <div>
@@ -113,64 +113,22 @@ export default function ChatPageInput({
         }
     };
 
-    const cleaner = (code: string) => {
-        return code.replace(/```python/g, "").replace(/```/g, "");
-    };
-
     const handleSubmitPrompt = async () => {
         if (!value.trim() || isDisabled) return;
-
         setIsLoading(true);
         setError("");
-        
         try {
-            // Validate input and state
-            if (!value.trim()) {
-                throw new Error("Message cannot be empty");
-            }
-
-            if (!onSend) {
-                throw new Error("onSend callback is required");
-            }
-
-            // Store model preference first to ensure it's saved even if later steps fail
-            if (chatId) {
-                try {
-                    cacheManager.storeModel(chatId, selectedModel);
-                } catch (cacheError) {
-                    console.warn("Failed to cache model preference:", cacheError);
-                    // Continue execution as this is not critical
-                }
-            }
-
-            // Send message through callback
+            // Send the message through the provided onSend callback
             onSend(value, selectedModel);
-
-            // Generate code and render animation in sequence
-            try {
-                const code = await generateCode(value, selectedModel);
-                if (!code) {
-                    throw new Error("No code generated");
-                }
-
-                const animation = await renderAnimation(code);
-                if (!animation) {
-                    throw new Error("No animation URL received");
-                }
-
-                console.log("Animation generated successfully:", animation);
-            } catch (generationError) {
-                console.error("Error during code generation or animation rendering:", generationError);
-                setError("Failed to generate animation. Please try again.");
-                return; // Exit early but don't throw to prevent full error state
+            // Store the model preference for future messages
+            if (chatId) {
+                cacheManager.storeModel(chatId, selectedModel);
             }
-
-            // Clear input only after successful completion
+            // Clear the input after sending
             setValue("");
-            
         } catch (err) {
             console.error("Error submitting prompt:", err);
-            setError(err instanceof Error ? err.message : "Failed to send your message. Please try again.");
+            setError("Failed to send your message. Please try again.");
         } finally {
             setIsLoading(false);
         }
