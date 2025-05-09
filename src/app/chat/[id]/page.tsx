@@ -790,31 +790,7 @@ I'm now rendering this animation for you...`,
                     <div className="w-full">
                       <ChatCodeBlock
                         code={
-                          aiResponse?.code ||
-                          `"use client";
-
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { Home, ArrowLeft, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-export default function NotFound() {
-  const [countdown, setCountdown] = useState(10);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const router = useRouter();
-  useEffect(() => {
-    if (countdown > 0 && !isRedirecting) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (countdown === 0 && !isRedirecting) {
-      setIsRedirecting(true);
-      router.push("/");
-    }
-  }, [countdown, isRedirecting, router]);
-
-  `
+                          aiResponse?.code || ''
                         }
                       />
                     </div>

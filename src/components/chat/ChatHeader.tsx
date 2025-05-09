@@ -21,7 +21,7 @@ export function ChatHeader({ sessionId, model }: ChatHeaderProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="w-full bg-[#121212] border-b border-[#232323] px-6 py-3 flex items-center justify-between h-16"
+      className="w-full bg-[#121212] border-b border-[#232323] px-3 py-3 flex items-center justify-between h-16"
     >
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2">

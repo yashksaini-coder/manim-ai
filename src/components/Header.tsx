@@ -14,7 +14,7 @@ export const Header = () => {
 
   return (
     <header className="">
-      <div className="mx-auto max-w-[1400px] flex items-center justify-between py-3">
+      <div className="mx-auto px-4 flex items-center justify-between py-3">
         <Link href="/" className="flex items-center gap-2">
           <span className="font-medium">
             <span className="text-primary">Manim.</span>
