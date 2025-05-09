@@ -19,11 +19,11 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
   // Add state to control fading between loading and content
   const [showLoading, setShowLoading] = useState(isLoading);
   const [showContent, setShowContent] = useState(!isLoading && content.length > 0);
-  
+
   // Handle transitions between loading and content states
   useEffect(() => {
     let timeout: NodeJS.Timeout;
-    
+
     if (isLoading) {
       setShowLoading(true);
       setShowContent(false);
@@ -34,71 +34,79 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
         setShowContent(true);
       }, 300);
     }
-    
+
     return () => {
       if (timeout) clearTimeout(timeout);
     };
   }, [isLoading, content]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ 
-        duration: 0.4, 
+      transition={{
+        duration: 0.4,
         ease: [0.25, 0.1, 0.25, 1.0],
         staggerChildren: 0.1
       }}
       className={cn(
-        "group relative w-full rounded-lg bg-foreground transition-all",
-        role === "user" ? "pl-2" : "pl-2"
+        "group relative w-full rounded-lg bg-background transition-all",
+        "p-0"
       )}
     >
-      <div className={cn(
-        "flex w-full items-start gap-4 p-4 rounded-lg",
-        role === "user" ? "bg-gray-800/30" : "bg-gray-800/10"
-      )}>
+      <div
+        className={cn(
+          // Use items-center for vertical alignment of avatar and text
+          "flex w-full items-center gap-3 px-4 py-2 rounded-lg",
+          role === "user" ? "bg-gray-800/30" : "bg-gray-800/10"
+        )}
+      >
         {/* Avatar with animation */}
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
           className={cn(
-            "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border",
-            role === "user" 
-              ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600" 
+            // Center avatar content and ensure perfect circle
+            "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full",
+            role === "user"
+              ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600"
               : "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-600"
           )}
+          style={{
+            // Add a little margin to separate from text
+            marginRight: "0.75rem"
+          }}
         >
           {role === "user" ? (
-            <User className="h-4 w-4" />
+            <User className="h-5 w-5 text-white" />
           ) : (
-            <Bot className="h-4 w-4" />
+            <Bot className="h-5 w-5 text-white" />
           )}
         </motion.div>
-        
+
         <div className="flex-1 space-y-2">
           {/* Role Label with animation */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -5 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.1 }}
             className="flex items-center gap-2"
           >
-            <span className={cn(
+            {/* <span className={cn(
               "text-xs font-medium",
               role === "user" ? "text-blue-400" : "text-purple-400"
             )}>
               {role === "user" ? "You" : "Manim AI"}
-            </span>
+            </span> */}
           </motion.div>
-          
+
           {/* Message Content with AnimatePresence for smooth transitions */}
           <div className="min-h-[24px]">
             <AnimatePresence mode="wait">
               {showLoading && (
-                <motion.div 
+                <motion.div
                   key="loading"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -126,9 +134,9 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
                   <span className="text-sm">Thinking...</span>
                 </motion.div>
               )}
-              
+
               {showContent && (
-                <motion.div 
+                <motion.div
                   key="content"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -146,10 +154,10 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
               )}
             </AnimatePresence>
           </div>
-          
+
           {/* Optional Children with animation */}
           {children && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.3 }}
@@ -162,4 +170,4 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
       </div>
     </motion.div>
   );
-} 
+}
