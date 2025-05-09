@@ -39,7 +39,7 @@ export const cleanCode = (code: string): string => {
 /**
  * Generates Manim code from a text prompt
  */
-export const generateCode = async (prompt: string, model: string = 'gemma-2-9b-it'): Promise<string> => {
+export const generateCode = async (prompt: string, model: string = 'llama-3.3-70b-versatile'): Promise<string> => {
   try {
     console.log(`Connecting to ${BACKEND_URL}/v1/generate/code`);
     const response = await fetch(`${BACKEND_URL}/v1/generate/code`, {
@@ -177,7 +177,7 @@ export const cacheManager = {
       code: localStorage.getItem(`chat_${chatId}_code`),
       videoUrl: localStorage.getItem(`chat_${chatId}_video`),
       prompt: localStorage.getItem(`chat_${chatId}_prompt`),
-      model: localStorage.getItem(`chat_${chatId}_model`) || 'gemma-2-9b-it',
+      model: localStorage.getItem(`chat_${chatId}_model`) || 'llama-3.3-70b-versatile',
     };
   },
 

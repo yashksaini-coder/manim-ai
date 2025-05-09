@@ -11,7 +11,7 @@ import ChatPageInput from '@/components/chat/chat-page-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useParams } from 'next/navigation';
-import { generateCode, renderAnimation, cacheManager, cleanCode } from '@/lib/api-helpers';
+import { cacheManager } from '@/lib/api-helpers';
 import { useUser } from '@clerk/nextjs';
 // Types for our messages
 interface Message {
@@ -66,6 +66,61 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     return code.replace(/```python/g, "").replace(/```/g, "");
   };
 
+  // Generate code via API
+  const generateCode = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
+    try {
+      console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          model,
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to generate code: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log(data);
+      console.log(cleaner(data.code));
+      return cleaner(data.code);
+    } catch (error) {
+      console.error('Error generating code:', error);
+      throw error;
+    }
+  };
+  
+  // Render animation via API
+  const renderAnimation = async (code: string): Promise<string> => {
+    try {
+      console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: cleaner(code),
+          file_name: "GenScene.py",
+          file_class: "GenScene",
+          iteration: Math.floor(Math.random() * 1000000),
+          project_name: "GenScene",
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to render animation: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      return data.video_url;
+    } catch (error) {
+      console.error('Error rendering animation:', error);
+      throw error;
+    }
+  };
+
   // Process a user message with API calls
   const processUserMessage = useCallback(async (prompt: string, model?: string) => {
     // Generate a unique request ID based on prompt and model to prevent duplicate calls
@@ -83,103 +138,31 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     });
     
     try {
-      // Store the prompt in cache first
+      // Check cached data first - only for exact prompt matches
+      const cachedData = cacheManager.getCachedData(chatId);
+      if (cachedData.code && cachedData.videoUrl && cachedData.prompt === prompt) {
+        console.log("Using cached data for exact prompt match");
+        setAIResponse({
+          code: cachedData.code,
+          videoUrl: cachedData.videoUrl,
+          status: "complete"
+        });
+        setProcessingStage(ProcessingStage.Complete);
+        
+        return;
+      }
+      
+      // Store the prompt in cache
       cacheManager.storePrompt(chatId, prompt);
       
-      // Store the model if provided
-      if (model) {
-        cacheManager.storeModel(chatId, model);
-      }
+      // Determine which model to use - prioritize the explicit model parameter
+      const modelToUse = model || cachedData.model || 'gemma-2-9b-it';
       
-      // Check if we already have cached data
-      if (cacheManager.hasCachedData(chatId)) {
-        const cachedData = cacheManager.getCachedData(chatId);
-        if (cachedData.code && cachedData.videoUrl) {
-          console.log("Using cached data for", requestId);
-          setAIResponse({
-            code: cachedData.code,
-            videoUrl: cachedData.videoUrl,
-            status: "complete"
-          });
-          setProcessingStage(ProcessingStage.Complete);
-          
-          // Add AI response to chat about the previously generated code
-          const aiMessage: Message = {
-            id: `ai-${Date.now()}`,
-            role: "ai",
-            content: `I've created a Manim animation based on your prompt: "${prompt}". 
-
-This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
-
-Here's the animation I previously rendered for you:`,
-            timestamp: new Date(),
-          };
-          
-          setMessages(prev => [...prev, aiMessage]);
-          return;
-        }
-      }
+      // Store the model
+      cacheManager.storeModel(chatId, modelToUse);
       
-      const generateCode = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
-        try {
-          console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              prompt,
-              model,
-            }),
-          });
-      
-          if (!response.ok) {
-            throw new Error(`Failed to generate code: ${response.status}`);
-          }
-      
-          const data = await response.json();
-          console.log(data);
-          console.log(cleaner(data.code));
-          return cleaner(data.code);
-        } catch (error) {
-          console.error('Error generating code:', error);
-        }
-      };
-      
-      /**
-       * Renders a Manim animation from code
-       */
-      const renderAnimation = async (code: string): Promise<string> => {
-        
-        
-        try {
-          console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
-          const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              code: cleaner(code),
-              file_name: "GenScene.py",
-              file_class: "GenScene",
-              iteration: Math.floor(Math.random() * 1000000),
-              project_name: "GenScene",
-
-            }),
-          });
-      
-          if (!response.ok) {
-            throw new Error(`Failed to render animation: ${response.status}`);
-          }
-      
-          const data = await response.json();
-          return data.video_url;
-        } catch (error) {
-          console.error('Error rendering animation:', error);
-          
-          throw error;
-        }
-      };
-
-      const generatedCode = await generateCode(prompt);
+      // Step 1: Generate code
+      const generatedCode = await generateCode(prompt, modelToUse);
       if (!generatedCode) {
         throw new Error("Failed to generate code");
       }
@@ -204,9 +187,6 @@ I'm now rendering this animation for you...`,
 
       // Cache the generated code
       cacheManager.storeCode(chatId, generatedCode);
-      
-      // Store the model too (this was accidentally removed)
-      cacheManager.storeModel(chatId, model || 'llama-3.3-70b-versatile');
       
       // Step 2: Start rendering animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
@@ -283,7 +263,7 @@ I'm now rendering this animation for you...`,
 
       // Ensure we have a default model if none was found
       if (!modelToUse) {
-        modelToUse = 'gemma-2-9b-it';
+        modelToUse = 'llama-3.3-70b-versatile';
       }
       
       if (promptToUse) {
@@ -394,29 +374,6 @@ I'm now rendering this animation for you...`,
     });
   }, []);
   
-  // Add scroll listener to handle both scroll buttons
-  // useEffect(() => {
-  //   if (!messagesContainerRef.current) return;
-    
-  //   // Get the actual scrollable viewport from shadcn ScrollArea
-  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-  //   if (!scrollAreaElement) return;
-    
-  //   const handleScroll = () => {
-  //     const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
-      
-  //     // Show/hide bottom scroll button based on position
-  //     if (scrollHeight <= scrollTop + clientHeight + 150) {
-  //       setShowScrollButton(false);
-  //     } else if (messages.length > 0) {
-  //       setShowScrollButton(true);
-  //     }
-  //   };
-    
-  //   scrollAreaElement.addEventListener('scroll', handleScroll);
-  //   return () => scrollAreaElement.removeEventListener('scroll', handleScroll);
-  // }, [messages.length]);
-  
   // Update render progress with memoized function
   const updateRenderProgress = useCallback(() => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
@@ -456,6 +413,34 @@ I'm now rendering this animation for you...`,
     
     // Make sure we have the chat id from params
     const currentChatId = chatId || '';
+    
+    // Check if we already have cached data for this prompt
+    const cachedData = cacheManager.getCachedData(currentChatId);
+    if (cachedData.code && cachedData.videoUrl && cachedData.prompt === message) {
+      console.log("Using cached data for existing prompt");
+      // If we have cached data for this exact prompt, use it
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: "ai",
+        content: `I've created a Manim animation based on your prompt: "${message}". 
+
+This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
+
+Here's your animation:`,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+      
+      setAIResponse({
+        code: cachedData.code,
+        videoUrl: cachedData.videoUrl,
+        status: "complete"
+      });
+      
+      setProcessingStage(ProcessingStage.Complete);
+      return;
+    }
     
     // Store the message in localStorage
     cacheManager.storePrompt(currentChatId, message);
@@ -660,7 +645,7 @@ I'm now rendering this animation for you...`,
                       <ChatPageInput 
                         prompt="" 
                         chatId={chatId}
-                        defaultModel={searchParams.get('model') || undefined}
+                        defaultModel={searchParams.get('model') || cacheManager.getCachedData(chatId).model || "gemma-2-9b-it"}
                         onSend={(message, model) => {
                           handleSendMessage(message, model);
                         }}

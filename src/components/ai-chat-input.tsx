@@ -64,7 +64,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
         minHeight: 72,
         maxHeight: 300,
     });
-    const [selectedModel, setSelectedModel] = useState("gemma-2-9b-it");
+    const [selectedModel, setSelectedModel] = useState("llama-3.3-70b-versatile");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const [error, setError] = useState("");
@@ -84,7 +84,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
     const AI_MODELS = [
         "llama-3.1-70b-versatile",
         "llama-3.1-8b-instant",
-        "gemma-2-9b-it",
+        // "gemma-2-9b-it",
         // "o3-mini",
         // "Gemini 2.5 Flash",
         // "Claude 3.5 Sonnet",
