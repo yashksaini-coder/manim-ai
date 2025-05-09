@@ -153,6 +153,17 @@ export const cacheManager = {
     }
   },
 
+  // Store model in localStorage
+  storeModel: (chatId: string, model: string) => {
+    try {
+      localStorage.setItem(`chat_${chatId}_model`, model);
+      return true;
+    } catch (error) {
+      console.error('Error storing model:', error);
+      return false;
+    }
+  },
+
   // Check if cached data exists for a chat
   hasCachedData: (chatId: string) => {
     const cachedCode = localStorage.getItem(`chat_${chatId}_code`);
@@ -166,6 +177,7 @@ export const cacheManager = {
       code: localStorage.getItem(`chat_${chatId}_code`),
       videoUrl: localStorage.getItem(`chat_${chatId}_video`),
       prompt: localStorage.getItem(`chat_${chatId}_prompt`),
+      model: localStorage.getItem(`chat_${chatId}_model`) || 'gemma-2-9b-it',
     };
   },
 
@@ -175,6 +187,7 @@ export const cacheManager = {
       localStorage.removeItem(`chat_${chatId}_code`);
       localStorage.removeItem(`chat_${chatId}_video`);
       localStorage.removeItem(`chat_${chatId}_prompt`);
+      localStorage.removeItem(`chat_${chatId}_model`);
       return true;
     } catch (error) {
       console.error('Error clearing cached data:', error);

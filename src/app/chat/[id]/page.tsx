@@ -67,6 +67,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   // Process a user message with API calls
   const processUserMessage = useCallback(async (prompt: string, model?: string) => {
+    // Generate a unique request ID based on prompt and model to prevent duplicate calls
+    const requestId = `${prompt}_${model || 'default'}`; 
+    
     // Don't make API calls if we've already sent the initial request
     if (isInitialRequestSent && initialPrompt === prompt) {
       console.log("Skipping duplicate API call for initial prompt");
@@ -82,21 +85,41 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       // Store the prompt in cache first
       cacheManager.storePrompt(chatId, prompt);
       
+      // Store the model if provided
+      if (model) {
+        cacheManager.storeModel(chatId, model);
+      }
+      
       // Check if we already have cached data
       if (cacheManager.hasCachedData(chatId)) {
         const cachedData = cacheManager.getCachedData(chatId);
         if (cachedData.code && cachedData.videoUrl) {
+          console.log("Using cached data for", requestId);
           setAIResponse({
             code: cachedData.code,
             videoUrl: cachedData.videoUrl,
             status: "complete"
           });
           setProcessingStage(ProcessingStage.Complete);
+          
+          // Add AI response to chat about the previously generated code
+          const aiMessage: Message = {
+            id: `ai-${Date.now()}`,
+            role: "ai",
+            content: `I've created a Manim animation based on your prompt: "${prompt}". 
+
+This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
+
+Here's the animation I previously rendered for you:`,
+            timestamp: new Date(),
+          };
+          
+          setMessages(prev => [...prev, aiMessage]);
           return;
         }
       }
       
-      const generateCode = async (prompt: string, model: string = 'gemma-2-9b-it') => {
+      const generateCode = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
         try {
           console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
           const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
@@ -133,7 +156,12 @@ export default function ChatPage({ params }: { params: { id: string } }) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              code: cleaner(code)
+              code: cleaner(code),
+              file_name: "GenScene.py",
+              file_class: "GenScene",
+              iteration: Math.floor(Math.random() * 1000000),
+              project_name: "GenScene",
+
             }),
           });
       
@@ -155,9 +183,30 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         throw new Error("Failed to generate code");
       }
 
+      // Add AI response to chat about the generated code
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: "ai",
+        content: `I've created a Manim animation based on your prompt: "${prompt}". 
+
+This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
+
+I'm now rendering this animation for you...`,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+      setAIResponse({
+        code: generatedCode,
+        status: "rendering"
+      });
+
       // Cache the generated code
       cacheManager.storeCode(chatId, generatedCode);
-        
+      
+      // Store the model too (this was accidentally removed)
+      cacheManager.storeModel(chatId, model || 'llama-3.3-70b-versatile');
+      
       // Step 2: Start rendering animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
       
@@ -218,14 +267,22 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       
       // First check URL parameters
       let promptToUse = initialPrompt;
-      let modelToUse = searchParams.get('model') || 'gemma-2-9b-it';
+      let modelToUse = searchParams.get('model');
       
       // If not found in URL, try localStorage via cacheManager
-      if (!promptToUse) {
+      if (!promptToUse || !modelToUse) {
         const cachedData = cacheManager.getCachedData(deps.chatId);
         if (cachedData.prompt) {
           promptToUse = cachedData.prompt;
         }
+        if (!modelToUse && cachedData.model) {
+          modelToUse = cachedData.model;
+        }
+      }
+
+      // Ensure we have a default model if none was found
+      if (!modelToUse) {
+        modelToUse = 'gemma-2-9b-it';
       }
       
       if (promptToUse) {

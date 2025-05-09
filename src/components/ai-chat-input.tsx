@@ -140,6 +140,60 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
         return code.replace(/```python/g, "").replace(/```/g, "");
     };
 
+    // Direct API implementations to match page.tsx implementation
+    const generateCodeAPI = async (prompt: string, model: string = 'gemma-2-9b-it') => {
+        try {
+            console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt,
+                    model,
+                }),
+            });
+        
+            if (!response.ok) {
+                throw new Error(`Failed to generate code: ${response.status}`);
+            }
+        
+            const data = await response.json();
+            console.log(data);
+            console.log(cleaner(data.code));
+            return cleaner(data.code);
+        } catch (error) {
+            console.error('Error generating code:', error);
+            throw error;
+        }
+    };
+    
+    const renderAnimationAPI = async (code: string): Promise<string> => {
+        try {
+            console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: cleaner(code),
+                    file_name: "GenScene.py",
+                    file_class: "GenScene",
+                    iteration: Math.floor(Math.random() * 1000000),
+                    project_name: "GenScene",
+                }),
+            });
+        
+            if (!response.ok) {
+                throw new Error(`Failed to render animation: ${response.status}`);
+            }
+        
+            const data = await response.json();
+            return data.video_url;
+        } catch (error) {
+            console.error('Error rendering animation:', error);
+            throw error;
+        }
+    };
+
     const handleSubmitPrompt = async () => {
         if (!value.trim()) return;
 
@@ -157,17 +211,20 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
             // Generate a unique chat ID
             const chatId = uuidv4();
 
-            // Store the prompt in localStorage for retrieval using cacheManager
+            // Store the prompt and model in localStorage for retrieval using cacheManager
             cacheManager.storePrompt(chatId, value);
+            
+            // Store the selected model in localStorage using cacheManager
+            cacheManager.storeModel(chatId, selectedModel);
             
             // Add a small delay to ensure the prompt is stored before redirecting
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            // Redirect to the chat page with the prompt as a query parameter
+            // Redirect to the chat page with the prompt and model as query parameters
             router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${selectedModel}`);
             
             // We don't need to make API calls here - they will be handled by the chat page
-            // This prevents duplicate API calls and ensures we follow the SaaS workflow
+
         } catch (err) {
             console.error("Error:", err);
             setError("Failed to process your request. Please try again.");
