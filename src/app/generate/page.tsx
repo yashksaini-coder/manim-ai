@@ -1,5 +1,5 @@
 "use client";
-import AIChatInput from "@/components/ai-chat-input"
+import AIChatInput from "@/components/LandingInput"
 
 export default function Generate() {
 

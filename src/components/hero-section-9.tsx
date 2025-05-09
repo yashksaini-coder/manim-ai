@@ -7,7 +7,7 @@ import { DotPattern } from "@/components/ui/dot-pattern-1"
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
-import AIChatInput from "@/components/ai-chat-input";
+import AIChatInput from "@/components/LandingInput";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { MainFooter } from "@/components/Footer";

@@ -1,18 +1,16 @@
 "use client";
 
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatCodeBlock } from '@/components/chat/ChatCodeBlock';
 import { VideoCard } from '@/components/chat/VideoCard';
 import { Code, Play, RefreshCw, ArrowDown } from 'lucide-react';
-import AI_Prompt from '@/components/ai-chat-input';
 import ChatPageInput from '@/components/chat/chat-page-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useParams } from 'next/navigation';
 import { cacheManager } from '@/lib/api-helpers';
-import { useUser } from '@clerk/nextjs';
+// import { useUser } from '@clerk/nextjs';
 // Types for our messages
 interface Message {
   id: string;
@@ -342,39 +340,39 @@ I'm now rendering this animation for you...`,
     };
   }, [messages]);
   
-  // Smoother scroll to bottom with easing
-  const scrollToBottom = useCallback(() => {
-    if (!messagesContainerRef.current) return;
+  // // Smoother scroll to bottom with easing
+  // const scrollToBottom = useCallback(() => {
+  //   if (!messagesContainerRef.current) return;
     
-    // Get the actual scrollable viewport from shadcn ScrollArea
-    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollAreaElement) return;
+  //   // Get the actual scrollable viewport from shadcn ScrollArea
+  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+  //   if (!scrollAreaElement) return;
     
-    const scrollHeight = (scrollAreaElement as HTMLDivElement).scrollHeight;
+  //   const scrollHeight = (scrollAreaElement as HTMLDivElement).scrollHeight;
     
-    (scrollAreaElement as HTMLDivElement).scrollTo({
-      top: scrollHeight,
-      behavior: 'smooth'
-    });
+  //   (scrollAreaElement as HTMLDivElement).scrollTo({
+  //     top: scrollHeight,
+  //     behavior: 'smooth'
+  //   });
     
-    setShowScrollButton(false);
-  }, []);
+  //   setShowScrollButton(false);
+  // }, []);
 
-  // Scroll to top for long conversations
-  const scrollToTop = useCallback(() => {
-    if (!messagesContainerRef.current) return;
+  // // Scroll to top for long conversations
+  // const scrollToTop = useCallback(() => {
+  //   if (!messagesContainerRef.current) return;
     
-    // Get the actual scrollable viewport from shadcn ScrollArea
-    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollAreaElement) return;
+  //   // Get the actual scrollable viewport from shadcn ScrollArea
+  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+  //   if (!scrollAreaElement) return;
     
-    (scrollAreaElement as HTMLDivElement).scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  }, []);
+  //   (scrollAreaElement as HTMLDivElement).scrollTo({
+  //     top: 0,
+  //     behavior: 'smooth'
+  //   });
+  // }, []);
   
-  // Update render progress with memoized function
+  // // Update render progress with memoized function
   const updateRenderProgress = useCallback(() => {
     if (processingStage === ProcessingStage.RenderingAnimation) {
       const newProgress = renderProgress + Math.random() * 10;
@@ -503,6 +501,8 @@ Here's your animation:`,
     }
   }, [messages]);
 
+
+  
   return (
     <div className="flex flex-col h-full rounded-2xl">      
       {/* Main content */}
@@ -616,7 +616,7 @@ Here's your animation:`,
               </ScrollArea>
               
               {/* New message button with enhanced animation */}
-              <AnimatePresence>
+              {/* <AnimatePresence>
                 {showScrollButton && (
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
@@ -636,7 +636,7 @@ Here's your animation:`,
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+               */}
               {/* Input field - fixed at bottom - show only when page is loaded */}
               {!pageLoading && (
                 <div className="pt-4 px-6 pb-4 bg-gray-950 rounded-2xl">
@@ -645,7 +645,7 @@ Here's your animation:`,
                       <ChatPageInput 
                         prompt="" 
                         chatId={chatId}
-                        defaultModel={searchParams.get('model') || cacheManager.getCachedData(chatId).model || "gemma-2-9b-it"}
+                        defaultModel={cacheManager.getCachedData(chatId).model || 'llama-3.3-70b-versatile'}
                         onSend={(message, model) => {
                           handleSendMessage(message, model);
                         }}

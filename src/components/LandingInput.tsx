@@ -54,7 +54,7 @@ const GROQ_SVG = (
     </div>
 );
 
-export default function AI_Prompt({prompt, onSend, isDisabled}: {
+export default function LandingInput({prompt, onSend, isDisabled}: {
     prompt: string;
     onSend?: (message: string, model?: string) => void;
     isDisabled?: boolean;
@@ -68,9 +68,6 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const [error, setError] = useState("");
-    const [videoUrl, setVideoUrl] = useState("");
-    const [code, setCode] = useState("");
-    const [query, setQuery] = useState("");
 
     // Use useEffect to set the initial value when prompt changes
     useEffect(() => {
@@ -141,7 +138,7 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
     };
 
     // Direct API implementations to match page.tsx implementation
-    const generateCodeAPI = async (prompt: string, model: string = 'gemma-2-9b-it') => {
+    const generateCodeAPI = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
         try {
             console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
             const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
