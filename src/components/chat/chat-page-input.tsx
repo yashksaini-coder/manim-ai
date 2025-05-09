@@ -102,14 +102,14 @@ export default function ChatPageInput({
   const AI_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "gemma-2-9b-it",
+    // "gemma-2-9b-it",
   ];
 
   const MODEL_ICONS: Record<string, React.ReactNode> = {
     "llama-3.3-70b-versatile": GROQ_SVG,
     "llama-3.1-8b-instant": GROQ_SVG,
-    "gemma-2-9b-it": GROQ_SVG,
-    "o3-mini": OPENAI_SVG,
+    // "gemma-2-9b-it": GROQ_SVG,
+    // "o3-mini": OPENAI_SVG,
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

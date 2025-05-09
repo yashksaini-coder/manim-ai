@@ -20,13 +20,6 @@ interface Message {
   timestamp: Date;
 }
 
-interface AIResponse {
-  code?: string;
-  videoUrl?: string;
-  error?: string;
-  status?: "generating" | "rendering" | "complete" | "error";
-}
-
 // Workflow stages
 enum ProcessingStage {
   Idle = "idle",
@@ -52,7 +45,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(
     ProcessingStage.Idle
   );
-  const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [codeContent, setCodeContent] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const [status, setStatus] = useState<"generating" | "rendering" | "complete" | "error">("generating");
   const [renderProgress, setRenderProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -134,6 +130,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       }
 
       const data = await response.json();
+      console.log(data.video_url);
       return data.video_url;
     } catch (error) {
       console.error("Error rendering animation:", error);
@@ -154,9 +151,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       }
 
       setProcessingStage(ProcessingStage.GeneratingCode);
-      setAIResponse({
-        status: "generating",
-      });
+      setStatus("generating");
 
       try {
         // Check cached data first - only for exact prompt matches
@@ -167,11 +162,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           cachedData.prompt === prompt
         ) {
           console.log("Using cached data for exact prompt match");
-          setAIResponse({
-            code: cachedData.code,
-            videoUrl: cachedData.videoUrl,
-            status: "complete",
-          });
+          setCodeContent(cachedData.code);
+          setVideoUrl(cachedData.videoUrl);
+          setStatus("complete");
           setProcessingStage(ProcessingStage.Complete);
 
           return;
@@ -196,19 +189,13 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         const aiMessage: Message = {
           id: `ai-${Date.now()}`,
           role: "ai",
-          content: `I've created a Manim animation based on your prompt: "${prompt}". 
-
-This animation demonstrates your requested visualization. The code uses Manim's animation methods to create the effect you described.
-
-I'm now rendering this animation for you...`,
+          content: `I've created a Manim animation based on your prompt: "${prompt}". `,
           timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, aiMessage]);
-        setAIResponse({
-          code: generatedCode,
-          status: "rendering",
-        });
+        // setMessages((prev) => [...prev, aiMessage]);
+        setCodeContent(generatedCode);
+        setStatus("rendering");
 
         // Cache the generated code
         cacheManager.storeCode(chatId, generatedCode);
@@ -231,19 +218,13 @@ I'm now rendering this animation for you...`,
         cacheManager.storeVideo(chatId, videoUrl);
 
         // Update with the video URL once rendering is complete
-        setAIResponse((prev) => ({
-          ...prev!,
-          videoUrl,
-          status: "complete",
-        }));
-
+        setVideoUrl(videoUrl);
+        setStatus("complete");
         setProcessingStage(ProcessingStage.Complete);
       } catch (error) {
         console.error("Error processing request:", error);
-        setAIResponse({
-          error: "Failed to generate or render animation. Please try again.",
-          status: "error",
-        });
+        setError("Failed to generate or render animation. Please try again.");
+        setStatus("error");
         setProcessingStage(ProcessingStage.Error);
       } finally {
         // Mark that we've made the initial API call
@@ -420,10 +401,7 @@ I'm now rendering this animation for you...`,
   // Complete rendering with memoized function
   const completeRendering = useCallback(() => {
     setProcessingStage(ProcessingStage.Complete);
-    setAIResponse((prev) => ({
-      ...prev!,
-      status: "complete",
-    }));
+    setStatus("complete");
   }, []);
 
   // Handle sending follow-up messages and manage the full workflow
@@ -449,7 +427,10 @@ I'm now rendering this animation for you...`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
-      setAIResponse({ code: "", videoUrl: "", status: "generating" });
+      setCodeContent("");
+      setVideoUrl("");
+      setError("");
+      setStatus("generating");
       setProcessingStage(ProcessingStage.GeneratingCode);
 
       try {
@@ -458,7 +439,8 @@ I'm now rendering this animation for you...`,
           message,
           model || "llama-3.3-70b-versatile"
         );
-        setAIResponse((prev) => ({ ...prev, code, status: "rendering" }));
+        setCodeContent(code);
+        setStatus("rendering");
 
         // 4. Update AI message: Rendering animation...
         setMessages((prev) =>
@@ -472,8 +454,9 @@ I'm now rendering this animation for you...`,
         // 5. Render animation
         setProcessingStage(ProcessingStage.RenderingAnimation);
         const videoUrl = await renderAnimation(code);
-        setAIResponse((prev) => ({ ...prev, videoUrl, status: "complete" }));
-
+        console.log(videoUrl);
+        setVideoUrl(videoUrl);
+        setStatus("complete");
         // 6. Update AI message: Here's your animation!
         setMessages((prev) =>
           prev.map((msg) =>
@@ -482,12 +465,10 @@ I'm now rendering this animation for you...`,
               : msg
           )
         );
+        setStatus("complete");
         setProcessingStage(ProcessingStage.Complete);
       } catch (err) {
-        setAIResponse({
-          error: "Failed to generate or render animation.",
-          status: "error",
-        });
+        setError("Failed to generate or render animation.");
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === aiMsgId
@@ -495,6 +476,7 @@ I'm now rendering this animation for you...`,
               : msg
           )
         );
+        setStatus("error");
         setProcessingStage(ProcessingStage.Error);
       }
     },
@@ -551,6 +533,12 @@ I'm now rendering this animation for you...`,
       return () => clearTimeout(scrollTimeout);
     }
   }, [messages]);
+
+  useEffect(() => {
+    console.log("aiResponse updated:", { videoUrl, codeContent, error, status });
+  }, [videoUrl, codeContent, error, status]);
+
+  console.log("VideoCard url:", videoUrl);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
@@ -733,53 +721,38 @@ I'm now rendering this animation for you...`,
                         </div>
                       </div>
                     )}
-                    {!aiResponse?.videoUrl ? (
+                    {videoUrl && !isProcessing && !error ? (
                       <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="w-full flex justify-center">
-                          <VideoCard
-                            videoUrl={
-                              aiResponse?.videoUrl || ""
-                            }
-                            isLoading={false}
-                          />
-                        </div>
-                      </div>
-                    ) : !isProcessing && !aiResponse?.error ? (
-                      // Empty state
-                      <div className="flex-1 flex flex-col items-center justify-center text-stone-500 min-h-[500px]">
-                        <div className="text-center p-8 border border-dashed border-stone-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
-                          <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
-                            <Play className="h-8 w-8 text-pink-400" />
-                          </div>
-                          <p className="text-lg text-stone-300 font-medium">
-                            Enter a prompt to generate a Manim animation
-                          </p>
-                          <p className="text-sm text-stone-500 mt-3 leading-relaxed">
-                            Try something like: "Create a bouncing ball
-                            animation with trail effects", "Animate the
-                            quadratic formula", or "Show a sine wave transform"
-                          </p>
+                        <div className="w-full max-w-[90%]">
+                          <VideoCard videoUrl={videoUrl} isLoading={false} />
                         </div>
                       </div>
                     ) : isProcessing ? (
-                      // Show loading state when processing
                       <div className="flex-1 flex flex-col items-center justify-center">
                         <div className="w-full max-w-[90%]">
                           <VideoCard videoUrl="" isLoading={true} />
                         </div>
                       </div>
-                    ) : null}
-
-                    {/* Show error if any */}
-                    {aiResponse?.error && (
+                    ) : error ? (
                       <div className="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-red-300 mt-4">
-                        <p className="mb-3">{aiResponse.error}</p>
+                        <p className="mb-3">{error}</p>
                         <button
                           onClick={handleRetry}
                           className="bg-red-900/30 hover:bg-red-800/40 text-white py-2 px-4 rounded-md text-sm flex items-center gap-2 transition-colors"
                         >
                           <RefreshCw className="h-4 w-4" /> Try Again
                         </button>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-stone-500 min-h-[500px]">
+                        <div className="text-center p-8 border border-dashed border-stone-700 rounded-lg bg-[#0f0f0f] w-full max-w-md">
+                          <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-6">
+                            <Play className="h-8 w-8 text-pink-400" />
+                          </div>
+                          <p className="text-lg text-stone-300 font-medium">
+                            No animation loaded
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -789,7 +762,7 @@ I'm now rendering this animation for you...`,
                     <div className="w-full">
                       <ChatCodeBlock
                         code={
-                          aiResponse?.code || ''
+                          codeContent || ''
                         }
                       />
                     </div>

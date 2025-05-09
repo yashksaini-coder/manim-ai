@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 
 interface VideoCardProps {
-  videoUrl: string;
+  videoUrl?: string;
   isLoading?: boolean;
 }
 
@@ -47,6 +47,7 @@ export function VideoCard({ videoUrl, isLoading = false }: VideoCardProps) {
   
   const handleDownload = async () => {
     try {
+      if (!videoUrl) return;
       const response = await fetch(videoUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

@@ -8,5 +8,9 @@ interface ChatLayoutProps {
 }
 
 export default function ChatLayout({ children, params }: ChatLayoutProps) {
-  return <div className="h-[calc(100vh-80px)] overflow-hidden px-3">{children}</div>;
+  return (
+    <div className="h-[calc(100vh-80px)] overflow-hidden px-3">
+      {children}
+    </div>
+  );
 }
