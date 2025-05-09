@@ -69,14 +69,14 @@ export function ChatHistory({
       <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#0f0f0f] via-[#0f0f0f]/60 to-transparent pointer-events-none z-10" />
       <div className="flex-1 overflow-hidden">
         <ScrollArea
-          className="h-full [&_[data-radix-scroll-area-viewport]]:!p-0 [&_[data-radix-scroll-area-thumb]]:bg-slate-700/50 hover:[&_[data-radix-scroll-area-thumb]]:bg-slate-600/50"
+          className="h-full [&_[data-radix-scroll-area-viewport]]:!p-0 [&_[data-radix-scroll-area-thumb]]:bg-stone-700/50 hover:[&_[data-radix-scroll-area-thumb]]:bg-stone-600/50"
           ref={scrollRef}
           onScroll={handleScroll}
         >
           <div className="p-3">
             {loading ? (
               <div className="animate-fade-in flex items-center justify-center p-6">
-                <Loader2 size={24} className="animate-spin text-slate-500" />
+                <Loader2 size={24} className="animate-spin text-stone-500" />
               </div>
             ) : messages && messages.length > 0 ? (
               <div className="space-y-6">
@@ -84,7 +84,7 @@ export function ChatHistory({
                   <div
                     key={message.id}
                     className={`group transition-all duration-300 ${
-                      selectedMessageId === message.id ? "bg-slate-800/20 rounded-md" : ""
+                      selectedMessageId === message.id ? "bg-stone-800/20 rounded-md" : ""
                     }`}
                   >
                     <div className="flex items-start gap-4 p-4">
@@ -110,7 +110,7 @@ export function ChatHistory({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-stone-500">
                             {new Date(message.createdAt).toLocaleString(
                               "en-US",
                               {
@@ -134,11 +134,11 @@ export function ChatHistory({
                         </div>
                         <div className="prose prose-invert max-w-none">
                           {message.role === "USER" ? (
-                            <div className="text-slate-200 text-sm">
+                            <div className="text-stone-200 text-sm">
                               {message.userQuery || message.response}
                             </div>
                           ) : (
-                            <div className="text-slate-300 space-y-4 text-sm">
+                            <div className="text-stone-300 space-y-4 text-sm">
                               {message.response}
                             </div>
                           )}
@@ -149,18 +149,18 @@ export function ChatHistory({
                 ))}
                 {generating && (
                   <div className="animate-fade-in flex items-center justify-center p-6">
-                    <Loader2 size={24} className="animate-spin text-slate-500" />
+                    <Loader2 size={24} className="animate-spin text-stone-500" />
                   </div>
                 )}
               </div>
             ) : !loading && (
               <div className="animate-fade-in flex items-center justify-center flex-col py-12">
                 <div className="p-6 text-center">
-                  <Info size={24} className="mx-auto mb-3 text-slate-500" />
-                  <p className="text-slate-400 text-sm">
+                  <Info size={24} className="mx-auto mb-3 text-stone-500" />
+                  <p className="text-stone-400 text-sm">
                     No chat history yet
                   </p>
-                  <p className="text-slate-500 text-xs mt-2">
+                  <p className="text-stone-500 text-xs mt-2">
                     Your conversation history will appear here
                   </p>
                 </div>
@@ -178,7 +178,7 @@ export function ChatHistory({
                 });
               }
             }}
-            className="absolute bottom-24 right-4 p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300 transition-colors shadow-lg"
+            className="absolute bottom-24 right-4 p-2 rounded-full bg-stone-800 text-stone-400 hover:bg-stone-700 hover:text-stone-300 transition-colors shadow-lg"
           >
             <ChevronRight className="h-4 w-4 rotate-90" />
           </button>
@@ -197,7 +197,7 @@ export function ChatHistory({
             onKeyDown={handleKeyDown}
             placeholder="Ask Manim AI..."
             disabled={generating}
-            className="flex-1 bg-transparent border-none text-slate-200 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-500 px-2"
+            className="flex-1 bg-transparent border-none text-stone-200 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-stone-500 px-2"
           />
           <Button
             onClick={() => {
@@ -207,7 +207,7 @@ export function ChatHistory({
             disabled={generating || !input.trim()}
             size="icon"
             variant="default"
-            className="bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all duration-200 hover:scale-105 ml-2"
+            className="bg-stone-700 hover:bg-stone-600 text-stone-200 transition-all duration-200 hover:scale-105 ml-2"
           >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
