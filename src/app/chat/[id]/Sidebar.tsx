@@ -1,7 +1,12 @@
-import React from 'react'
+"use client";
 
-export default function Sidebar() {
+import { SessionNavBar } from "@/components/ui/sidebar"
+export function SidebarDemo() {
   return (
-    <div>Sidebar</div>
-  )
+    <div className="flex h-screen w-screen flex-row">
+      <SessionNavBar />
+      <main className="flex h-screen grow flex-col overflow-auto">
+      </main>
+    </div>
+  );
 }
