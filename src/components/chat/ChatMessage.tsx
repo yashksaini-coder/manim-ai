@@ -51,10 +51,9 @@ export function ChatMessage({ content, role, isLoading = false, children }: Chat
         staggerChildren: 0.1
       }}
       className={cn(
-        "group relative w-full rounded-lg bg-gray-950 transition-all",
+        "group relative w-full rounded-lg bg-foreground transition-all",
         role === "user" ? "pl-2" : "pl-2"
       )}
-      layout="position"
     >
       <div className={cn(
         "flex w-full items-start gap-4 p-4 rounded-lg",

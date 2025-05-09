@@ -10,6 +10,8 @@ import AI_Prompt from '@/components/ai-chat-input';
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useParams } from 'next/navigation';
+import { generateCode, renderAnimation, cacheManager } from '@/lib/api-helpers';
+
 // Types for our messages
 interface Message {
   id: string;
@@ -38,7 +40,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialPrompt = searchParams.get('prompt');
-  const chatId = useParams();
+  const paramId = useParams();
+  const chatId = typeof paramId === 'object' && paramId.id 
+    ? (Array.isArray(paramId.id) ? paramId.id[0] : paramId.id) 
+    : params.id;
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
   const [aiResponse, setAIResponse] = useState<AIResponse | null>(null);
@@ -46,47 +52,49 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  // const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const [isLoadingInitialMessage, setIsLoadingInitialMessage] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
+  const [isInitialRequestSent, setIsInitialRequestSent] = useState(false);
   
   const isProcessing = processingStage !== ProcessingStage.Idle && processingStage !== ProcessingStage.Complete && processingStage !== ProcessingStage.Error;
   
   // Reference to timeout for cleanup
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Process a user message - memoize with useCallback
+
+  // Process a user message with API calls
   const processUserMessage = useCallback(async (prompt: string) => {
+    // Don't make API calls if we've already sent the initial request
+    if (isInitialRequestSent && initialPrompt === prompt) {
+      console.log("Skipping duplicate API call for initial prompt");
+      return;
+    }
+    
     setProcessingStage(ProcessingStage.GeneratingCode);
     setAIResponse({
       status: "generating"
     });
     
     try {
-      // Step 1: Generate code (simulate API call with delay)
-      await new Promise(resolve => {
-        timeoutRef.current = setTimeout(resolve, 3000);
-      });
+      // Store the prompt in cache first
+      cacheManager.storePrompt(chatId, prompt);
       
-      // Mock code generation response
-      const generatedCode = `from manim import *
-
-class SquareToCircle(Scene):
-    def construct(self):
-        # Create a square
-        square = Square(side_length=2, color=BLUE)
-        
-        # Create a circle
-        circle = Circle(radius=1, color=RED)
-        
-        # Display the square
-        self.play(Create(square))
-        
-        # Transform the square into a circle
-        self.play(Transform(square, circle))
-        
-        # Wait for a second at the end
-        self.wait()`;
+      // Check if we already have cached data
+      if (cacheManager.hasCachedData(chatId)) {
+        const cachedData = cacheManager.getCachedData(chatId);
+        if (cachedData.code && cachedData.videoUrl) {
+          setAIResponse({
+            code: cachedData.code,
+            videoUrl: cachedData.videoUrl,
+            status: "complete"
+          });
+          setProcessingStage(ProcessingStage.Complete);
+          return;
+        }
+      }
+      
+      // Step 1: Generate code using API
+      setProcessingStage(ProcessingStage.GeneratingCode);
+      const generatedCode = await generateCode(prompt);
       
       // Add AI response to chat about the generated code
       const aiMessage: Message = {
@@ -105,19 +113,23 @@ I'm now rendering this animation for you...`,
         code: generatedCode,
         status: "rendering"
       });
+      
+      // Cache the generated code
+      cacheManager.storeCode(chatId, generatedCode);
         
       // Step 2: Start rendering animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
       
-      // Step 3: Complete rendering after a delay (in real app, would wait for actual render)
-      await new Promise(resolve => {
-        timeoutRef.current = setTimeout(resolve, 8000);
-      });
+      // Step 3: Render animation using API
+      const videoUrl = await renderAnimation(generatedCode);
       
-      // Update with the video URL once "rendering" is complete
+      // Cache the video URL
+      cacheManager.storeVideo(chatId, videoUrl);
+      
+      // Update with the video URL once rendering is complete
       setAIResponse(prev => ({
         ...prev!,
-        videoUrl: "https://assets.codepen.io/308367/firefly-5713-manim.mp4",
+        videoUrl,
         status: "complete"
       }));
       
@@ -130,9 +142,14 @@ I'm now rendering this animation for you...`,
         status: "error"
       });
       setProcessingStage(ProcessingStage.Error);
+    } finally {
+      // Mark that we've made the initial API call
+      if (initialPrompt === prompt) {
+        setIsInitialRequestSent(true);
+      }
     }
-  }, []);
-  
+  }, [initialPrompt, isInitialRequestSent, chatId]);
+
   // Handle initial prompt from URL or localStorage
   useEffect(() => {
     const loadInitialPrompt = async () => {
@@ -141,12 +158,11 @@ I'm now rendering this animation for you...`,
       // First check URL parameters
       let promptToUse = initialPrompt;
       
-      // If not found in URL, try localStorage
+      // If not found in URL, try localStorage via cacheManager
       if (!promptToUse) {
-        // localStorage.getItem is not a Promise, so no need for await
-        const storedPrompt = localStorage.getItem(`chat_${chatId}_prompt`);
-        if (storedPrompt) {
-          promptToUse = storedPrompt;
+        const cachedData = cacheManager.getCachedData(chatId);
+        if (cachedData.prompt) {
+          promptToUse = cachedData.prompt;
         }
       }
       
@@ -176,8 +192,18 @@ I'm now rendering this animation for you...`,
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [initialPrompt, chatId, processUserMessage]);
-  
+  }, [chatId, initialPrompt, processUserMessage]);
+
+  // Handle initial page load animation
+  useEffect(() => {
+    // Short timeout to ensure smooth page transition
+    const pageLoadTimeout = setTimeout(() => {
+      setPageLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(pageLoadTimeout);
+  }, []);
+
   // Enhanced scroll behavior with better detection
   useEffect(() => {
     if (!messagesContainerRef.current) return;
@@ -249,40 +275,27 @@ I'm now rendering this animation for you...`,
   }, []);
   
   // Add scroll listener to handle both scroll buttons
-  useEffect(() => {
-    if (!messagesContainerRef.current) return;
+  // useEffect(() => {
+  //   if (!messagesContainerRef.current) return;
     
-    // Get the actual scrollable viewport from shadcn ScrollArea
-    const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollAreaElement) return;
+  //   // Get the actual scrollable viewport from shadcn ScrollArea
+  //   const scrollAreaElement = messagesContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
+  //   if (!scrollAreaElement) return;
     
-    const handleScroll = () => {
-      const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
+  //   const handleScroll = () => {
+  //     const { scrollHeight, clientHeight, scrollTop } = scrollAreaElement as HTMLDivElement;
       
-      // Show/hide bottom scroll button based on position
-      if (scrollHeight <= scrollTop + clientHeight + 150) {
-        setShowScrollButton(false);
-      } else if (messages.length > 0) {
-        setShowScrollButton(true);
-      }
-
-      // Show top scroll button only when scrolled down significantly
-      // setShowScrollTopButton(scrollTop > 300);
-    };
+  //     // Show/hide bottom scroll button based on position
+  //     if (scrollHeight <= scrollTop + clientHeight + 150) {
+  //       setShowScrollButton(false);
+  //     } else if (messages.length > 0) {
+  //       setShowScrollButton(true);
+  //     }
+  //   };
     
-    scrollAreaElement.addEventListener('scroll', handleScroll);
-    return () => scrollAreaElement.removeEventListener('scroll', handleScroll);
-  }, [messages.length]);
-  
-  // Handle initial page load animation
-  useEffect(() => {
-    // Short timeout to ensure smooth page transition
-    const pageLoadTimeout = setTimeout(() => {
-      setPageLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(pageLoadTimeout);
-  }, []);
+  //   scrollAreaElement.addEventListener('scroll', handleScroll);
+  //   return () => scrollAreaElement.removeEventListener('scroll', handleScroll);
+  // }, [messages.length]);
   
   // Update render progress with memoized function
   const updateRenderProgress = useCallback(() => {
@@ -291,7 +304,7 @@ I'm now rendering this animation for you...`,
       if (newProgress < 100) {
         setRenderProgress(Math.min(newProgress, 99));
         timeoutRef.current = setTimeout(updateRenderProgress, 500);
-        } else {
+      } else {
         setRenderProgress(100);
         completeRendering();
       }
@@ -320,6 +333,8 @@ I'm now rendering this animation for you...`,
     
     setMessages(prev => [...prev, userMessage]);
     setRenderProgress(0);
+    
+    // Store the message and process it
     processUserMessage(message);
   }, [processUserMessage]);
   
@@ -342,12 +357,13 @@ I'm now rendering this animation for you...`,
     if (messages.length > 0) {
       const lastUserMessage = messages.filter(m => m.role === "user").pop();
       if (lastUserMessage) {
+        setIsInitialRequestSent(false); // Reset flag to allow retry
         processUserMessage(lastUserMessage.content);
       }
     }
   }, [messages, processUserMessage]);
   
-  // Go back to projects
+  // Go back to landing page
   const handleBack = useCallback(() => {
     router.push('/');
   }, [router]);
@@ -371,7 +387,7 @@ I'm now rendering this animation for you...`,
     }
   }, [messages]);
 
-    return (
+  return (
     <div className="flex flex-col h-full rounded-2xl">      
       {/* Main content */}
       <motion.div 
@@ -381,7 +397,7 @@ I'm now rendering this animation for you...`,
         transition={{ duration: 0.5 }}
       >
         {/* Left side - Chat area */}
-        <div className="w-2/5 border justify-stretch bg-gray-950 rounded-2xl flex border-spacing-4 mx-4 flex-col h-full">
+        <div className="w-2/5 border-2 border-blue-500 justify-stretch bg-background rounded-2xl flex border-spacing-4 mx-4 flex-col h-full">
           {/* Page loading state */}
           {pageLoading ? (
             <div className="flex-1 flex items-center justify-center">
@@ -406,10 +422,10 @@ I'm now rendering this animation for you...`,
                     transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
                     className="h-3 w-3 rounded-full bg-purple-400"
                   />
-          </div>
+                </div>
                 <p className="text-sm text-gray-400">Loading conversation...</p>
               </motion.div>
-      </div>
+            </div>
           ) : (
             <>
               {/* Messages container with enhanced scrolling using ScrollArea */}
@@ -480,31 +496,8 @@ I'm now rendering this animation for you...`,
                     </AnimatePresence>
                     <div ref={messagesEndRef} className="h-px" />
                   </div>
-              </div>
+                </div>
               </ScrollArea>
-              
-              {/* Scroll to top button
-              <AnimatePresence>
-                {showScrollTopButton && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed top-24 left-[20%] transform -translate-x-1/2 z-10"
-                  >
-                    <motion.button 
-                      onClick={scrollToTop}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-full shadow-lg text-sm flex items-center gap-2 transition-colors"
-                    >
-                      <ArrowUp className="h-4 w-4" /> Top
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-               */}
               
               {/* New message button with enhanced animation */}
               <AnimatePresence>
@@ -538,9 +531,9 @@ I'm now rendering this animation for you...`,
                         onSend={handleSendMessage}
                         isDisabled={isProcessing} 
                       />
-          </div>
-      </div>
-            </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -555,10 +548,10 @@ I'm now rendering this animation for you...`,
                 <div className="text-sm text-gray-400 flex items-center">
                   <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
                   {getStatusMessage()}
-            </div>
-          </div>
-        )}
-        
+                </div>
+              </div>
+            )}
+            
             {/* Show content based on state - Removed AnimatePresence */}
             {/* Show video if available */}
             {aiResponse?.videoUrl ? (
@@ -615,4 +608,4 @@ I'm now rendering this animation for you...`,
       </motion.div>
     </div>
   );
-} 
+}

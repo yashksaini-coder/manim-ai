@@ -11,6 +11,7 @@ import AIChatInput from "@/components/ai-chat-input";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { MainFooter } from "@/components/Footer";
+import { cacheManager } from "@/lib/api-helpers";
 
 export const HeroSection = () => {
     const { user } = useUser();
@@ -23,7 +24,10 @@ export const HeroSection = () => {
         try {
             setIsRedirecting(true);
             const chatId = uuid();
-            localStorage.setItem(`chat_${chatId}_prompt`, prompt);
+            
+            // Store the prompt using cacheManager for better consistency
+            cacheManager.storePrompt(chatId, prompt);
+            
             await new Promise(resolve => setTimeout(resolve, 400));
             router.push(`/chat/${chatId}?prompt=${encodeURIComponent(prompt)}`);
         } catch (error) {

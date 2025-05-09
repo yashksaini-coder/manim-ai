@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
+import { cacheManager } from "@/lib/api-helpers";
 
 const OPENAI_SVG = (
     <div>
@@ -150,63 +151,26 @@ export default function AI_Prompt({prompt, onSend, isDisabled}: {
         }
 
         setIsLoading(true);
-        // Generate a unique chat ID
-        const chatId = uuidv4();
-
         setError("");
-        setVideoUrl("");
-        setCode("");
-        setQuery(value); // Save the query value
-
-        // Store the prompt and chatId in localStorage for retrieval in chat page
-        localStorage.setItem(`chat_${chatId}_prompt`, value);
-        localStorage.setItem(`chat_${chatId}_model`, selectedModel);
-        
-        // Add a small delay to ensure the prompt is stored before redirecting
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // Redirect to the chat page with the prompt as a query parameter
-        router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}&model=${encodeURIComponent(selectedModel)}`);
         
         try {
-            // Continue processing in the background after redirect
-            // 1. Generate code from query
-            const codeRes = await fetch(
-                `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        prompt: value, // Use the current value instead of query
-                        model: selectedModel,
-                    }),
-                }
-            );
-            const codeData = await codeRes.json();
-            const cleanedCode = cleaner(codeData.code);
-            console.log(cleanedCode);
-            setCode(cleanedCode);
+            // Generate a unique chat ID
+            const chatId = uuidv4();
 
-            // 2. Generate video from cleaned code
-            const videoRes = await fetch(
-                `${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        code: cleanedCode,
-                        file_name: "GenScene.py",
-                        file_class: "GenScene",
-                        iteration: Math.floor(Math.random() * 1000000),
-                        project_name: "GenScene",
-                    }),
-                }
-            );
-            const videoData = await videoRes.json();
-            setVideoUrl(videoData.video_url);
+            // Store the prompt in localStorage for retrieval using cacheManager
+            cacheManager.storePrompt(chatId, value);
+            
+            // Add a small delay to ensure the prompt is stored before redirecting
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Redirect to the chat page with the prompt as a query parameter
+            router.push(`/chat/${chatId}?prompt=${encodeURIComponent(value)}`);
+            
+            // We don't need to make API calls here - they will be handled by the chat page
+            // This prevents duplicate API calls and ensures we follow the SaaS workflow
         } catch (err) {
-            setError("Failed to generate video. Please try again.");
-        } finally {
+            console.error("Error:", err);
+            setError("Failed to process your request. Please try again.");
             setIsLoading(false);
         }
     };
