@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { cacheManager } from "@/lib/api-helpers";
+// import { cacheManager } from "@/lib/api-helpers";
 
 const OPENAI_SVG = (
     <div>
@@ -207,12 +207,6 @@ export default function LandingInput({prompt, onSend, isDisabled}: {
         try {
             // Generate a unique chat ID
             const chatId = uuidv4();
-
-            // Store the prompt and model in localStorage for retrieval using cacheManager
-            cacheManager.storePrompt(chatId, value);
-            
-            // Store the selected model in localStorage using cacheManager
-            cacheManager.storeModel(chatId, selectedModel);
             
             // Add a small delay to ensure the prompt is stored before redirecting
             await new Promise(resolve => setTimeout(resolve, 300));

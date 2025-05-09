@@ -12,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cacheManager } from "@/lib/api-helpers";
 
 const OPENAI_SVG = (
   <div>
@@ -89,16 +88,6 @@ export default function ChatPageInput({
     }
   }, [prompt, adjustHeight]);
 
-  // Check if there's a stored model preference for this chat
-  useEffect(() => {
-    if (chatId) {
-      const cachedData = cacheManager.getCachedData(chatId);
-      if (cachedData.model) {
-        setSelectedModel(cachedData.model);
-      }
-    }
-  }, [chatId]);
-
   const AI_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
@@ -124,24 +113,7 @@ export default function ChatPageInput({
     setIsLoading(true);
     setError("");
     try {
-
-      // TODO: store prompt into db, then create chat id and then once chat page is rendered call api with user prompt and lso store all the data in the db for context
-      // create string id for prompts and use that to store in db
-      // create a new chat id and store it in the db
-      // store the prompt in the db with the chat id
-      // store the model in the db with the chat id
-      // store the user id in the db with the chat id
-      // store the chat id in the db with the user id
-      // store the user prompt in the db with the chat id
-      // store the response in the db with the chat id
-      
-      // Send the message through the provided onSend callback
       onSend(value, selectedModel);
-      // Store the model preference for future messages
-      if (chatId) {
-        cacheManager.storeModel(chatId, selectedModel);
-      }
-      // Clear the input after sending
       setValue("");
     } catch (err) {
       console.error("Error submitting prompt:", err);

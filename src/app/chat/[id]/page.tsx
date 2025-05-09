@@ -10,7 +10,6 @@ import { Play, RefreshCw } from "lucide-react";
 import ChatPageInput from "@/components/chat/chat-page-input";
 import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cacheManager } from "@/lib/api-helpers";
 import { useUser } from "@clerk/nextjs";
 
 // Import the API client functions
@@ -43,6 +42,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialPrompt = searchParams.get("prompt");
+  const initialModel = searchParams.get("model") || "llama-3.3-70b-versatile";
   const paramId = useParams();
   
   // Extract chat ID from params
@@ -140,7 +140,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   };
 
   // Process user message and generate animation
-  const processUserMessage = useCallback(async (prompt: string, model?: string) => {
+  const processUserMessage = useCallback(async (prompt: string, model: string = "llama-3.3-70b-versatile") => {
     // Skip if this is a duplicate of the initial request
     if (isInitialRequestSent && initialPrompt === prompt) {
       console.log("Skipping duplicate API call for initial prompt");
@@ -181,26 +181,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         }
       }
       
-      // Check if we have cached data for this exact prompt
-      const cachedData = cacheManager.getCachedData(chatId);
-      if (cachedData.code && cachedData.videoUrl && cachedData.prompt === prompt) {
-        console.log("Using cached data for exact prompt match");
-        setCodeContent(cachedData.code);
-        setVideoUrl(cachedData.videoUrl);
-        setStatus("complete");
-        setProcessingStage(ProcessingStage.Complete);
-        return;
-      }
-      
-      // Store the prompt in cache
-      cacheManager.storePrompt(chatId, prompt);
-      
-      // Determine which model to use
-      const modelToUse = model || cachedData.model || "llama-3.3-70b-versatile";
-      cacheManager.storeModel(chatId, modelToUse);
-      
       // Step 1: Generate code
-      const generatedCode = await generateCode(prompt, modelToUse);
+      const generatedCode = await generateCode(prompt, model);
       if (!generatedCode) {
         throw new Error("Failed to generate code");
       }
@@ -228,9 +210,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         );
       }
       
-      // Cache the generated code
-      cacheManager.storeCode(chatId, generatedCode);
-      
       // Step 2: Render animation
       setProcessingStage(ProcessingStage.RenderingAnimation);
       const videoUrl = await renderAnimation(generatedCode);
@@ -243,8 +222,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       // Animation is complete
       setRenderProgress(100);
       
-      // Cache and update state with video URL
-      cacheManager.storeVideo(chatId, videoUrl);
+      // Update state with video URL
       setVideoUrl(videoUrl);
       setStatus("complete");
       
@@ -310,39 +288,14 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]);
 
-  // Memoize dependencies to prevent useEffect dependency issues
-  const memoizedDeps = useCallback(() => ({
-    chatId,
-    initialPrompt,
-    processUserMessageFn: processUserMessage,
-  }), [chatId, initialPrompt, processUserMessage]);
-
-  // Cache memoized dependencies
-  const deps = useRef(memoizedDeps()).current;
-
-  // Load initial prompt from URL or cache
+  // Load initial prompt from URL
   useEffect(() => {
     const loadInitialPrompt = async () => {
       setIsLoadingInitialMessage(true);
 
-      // Try to get prompt from URL or cache
+      // Get prompt from URL parameters
       let promptToUse = initialPrompt;
-      let modelToUse = searchParams.get("model");
-
-      if (!promptToUse || !modelToUse) {
-        const cachedData = cacheManager.getCachedData(deps.chatId);
-        if (cachedData.prompt) {
-          promptToUse = cachedData.prompt;
-        }
-        if (!modelToUse && cachedData.model) {
-          modelToUse = cachedData.model;
-        }
-      }
-
-      // Set default model if needed
-      if (!modelToUse) {
-        modelToUse = "llama-3.3-70b-versatile";
-      }
+      let modelToUse = initialModel;
 
       if (promptToUse) {
         // Add a small delay to allow component to mount
@@ -356,7 +309,25 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         };
 
         setMessages([userMessage]);
-        deps.processUserMessageFn(promptToUse, modelToUse);
+        processUserMessage(promptToUse, modelToUse);
+      } else if (chatId.startsWith("session_") && clerkId && isUserLoaded) {
+        // If no prompt in URL but we have a session ID, load existing messages
+        try {
+          const messagesData = await getMessages(clerkId, chatId);
+          if (messagesData && Array.isArray(messagesData) && messagesData.length > 0) {
+            // Format messages from API to our Message format
+            const formattedMessages = messagesData.map(msg => ({
+              id: msg._id || `msg-${Date.now()}-${Math.random()}`,
+              role: msg.role as "user" | "ai",
+              content: msg.content,
+              timestamp: new Date(msg.timestamp)
+            }));
+            
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error("Error loading messages:", error);
+        }
       }
 
       setIsLoadingInitialMessage(false);
@@ -370,7 +341,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [deps, searchParams]);
+  }, [initialPrompt, initialModel, chatId, clerkId, isUserLoaded, processUserMessage]);
 
   // Handle page load animation
   useEffect(() => {
@@ -430,8 +401,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   }, [messages]);
 
-  // Handle sending follow-up messages and manage the full workflow
-  const handleSendMessage = useCallback(async (message: string, model?: string) => {
+  // Send a new message in the chat
+  const handleSendMessage = useCallback(async (message: string, model: string = "llama-3.3-70b-versatile") => {
     if (!message.trim()) return;
     
     // 1. Add user message to the UI
@@ -471,7 +442,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
     try {
       // 3. Generate code
-      const code = await generateCode(message, model || "llama-3.3-70b-versatile");
+      const code = await generateCode(message, model);
       setCodeContent(code);
       setStatus("rendering");
 
@@ -572,32 +543,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       }
     }
   }, [messages, processUserMessage]);
-
-  // Load existing messages for this session
-  useEffect(() => {
-    const loadSessionMessages = async () => {
-      if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
-        try {
-          const messagesData = await getMessages(clerkId, chatId);
-          if (messagesData && Array.isArray(messagesData) && messagesData.length > 0) {
-            // Format messages from API to our Message format
-            const formattedMessages = messagesData.map(msg => ({
-              id: msg._id || `msg-${Date.now()}-${Math.random()}`,
-              role: msg.role as "user" | "ai",
-              content: msg.content,
-              timestamp: new Date(msg.timestamp)
-            }));
-            
-            setMessages(formattedMessages);
-          }
-        } catch (error) {
-          console.error("Error loading messages:", error);
-        }
-      }
-    };
-
-    loadSessionMessages();
-  }, [clerkId, isUserLoaded, chatId]);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
@@ -703,10 +648,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                     <ChatPageInput
                       prompt=""
                       chatId={chatId}
-                      defaultModel={
-                        cacheManager.getCachedData(chatId).model ||
-                        "llama-3.3-70b-versatile"
-                      }
+                      defaultModel="llama-3.3-70b-versatile"
                       onSend={handleSendMessage}
                       isDisabled={isProcessing}
                     />
