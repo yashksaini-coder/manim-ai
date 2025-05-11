@@ -42,7 +42,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const initialPrompt = searchParams.get("prompt");
   const initialModel = searchParams.get("model") || "llama-3.3-70b-versatile";
-  const defaultModel = initialModel as string;
   const paramId = useParams();
   
   // Extract chat ID from params
@@ -83,7 +82,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   };
 
   // Process user message and generate animation
-  const processUserMessage = useCallback(async (prompt: string, model: string = defaultModel) => {
+  const processUserMessage = useCallback(async (prompt: string, model: string = initialModel) => {
     // Skip if this is a duplicate of the initial request
     if (isInitialRequestSent && initialPrompt === prompt) {
       console.log("Skipping duplicate API call for initial prompt");
@@ -222,7 +221,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         setIsInitialRequestSent(true);
       }
     }
-  }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router, defaultModel]);
+  }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]);
 
   // Load initial prompt from URL
   useEffect(() => {
@@ -338,7 +337,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }, [messages]);
 
   // Send a new message in the chat
-  const handleSendMessage = useCallback(async (message: string, model: string = defaultModel) => {
+  const handleSendMessage = useCallback(async (message: string, model: string = initialModel) => {
     if (!message.trim()) return;
     
     // 1. Add user message to the UI
@@ -456,7 +455,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       setStatus("error");
       setProcessingStage(ProcessingStage.Error);
     }
-  }, [clerkId, isUserLoaded, chatId, defaultModel]);
+  }, [clerkId, isUserLoaded, chatId]);
 
   // Get status message based on current stage
   const getStatusMessage = useCallback(() => {
@@ -478,10 +477,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       const lastUserMessage = messages.filter(m => m.role === "user").pop();
       if (lastUserMessage) {
         setIsInitialRequestSent(false); // Reset flag to allow retry
-        processUserMessage(lastUserMessage.content, defaultModel);
+        processUserMessage(lastUserMessage.content);
       }
     }
-  }, [messages, processUserMessage, defaultModel]);
+  }, [messages, processUserMessage]);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
@@ -587,7 +586,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                     <ChatPageInput
                       prompt=""
                       chatId={chatId}
-                      defaultModel={defaultModel}
+                      defaultModel="llama-3.3-70b-versatile"
                       onSend={handleSendMessage}
                       isDisabled={isProcessing}
                     />
