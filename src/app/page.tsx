@@ -84,6 +84,7 @@ export default function MainPage() {
         setVideoUrl(animationResponse.videoUrl);
         setStatus("complete");
         setProcessingStage(ProcessingStage.Complete);
+        setIsProcessing(false);
       } else {
         throw new Error("No video URL in response");
       }
