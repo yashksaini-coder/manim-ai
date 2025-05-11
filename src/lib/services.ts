@@ -159,6 +159,11 @@ export async function getLatestMessage(clerkId: string, sessionId: string) {
 // Video APIs
 export async function createVideo(clerkId: string, videoUrl: string, code: string) {
   try {
+    if (!clerkId || !videoUrl || !code) {
+      console.error('Missing required parameters for createVideo:', { clerkId, videoUrl: !!videoUrl, code: !!code });
+      throw new Error('Missing required parameters: clerkId, videoUrl, code');
+    }
+
     const response = await fetch('/api/video', {
       method: 'POST',
       headers: {
@@ -172,7 +177,9 @@ export async function createVideo(clerkId: string, videoUrl: string, code: strin
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create video: ${response.statusText}`);
+      const errorData = await response.text();
+      console.error('Server error response:', errorData);
+      throw new Error(`Failed to create video: ${response.status} ${response.statusText}`);
     }
 
     return await response.json();
@@ -197,7 +204,11 @@ export async function getVideos(clerkId: string) {
   }
 }
 
-export async function updateVideo(id: string, updateData: any) {
+export async function updateVideo(id: string, updateData: {
+  clerkId: string;
+  videoUrl: string;
+  code: string;
+}) {
   try {
     const response = await fetch('/api/video', {
       method: 'PATCH',
@@ -217,6 +228,97 @@ export async function updateVideo(id: string, updateData: any) {
     return await response.json();
   } catch (error) {
     console.error('Error updating video:', error);
+    throw error;
+  }
+}
+
+// Chat APIs
+export async function getChatCompletion(clerkId: string, sessionId: string, prompt: string, model?: string) {
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        clerkId,
+        sessionId,
+        prompt,
+        model
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Chat API error response:', errorData);
+      throw new Error(`Failed to get chat completion: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting chat completion:', error);
+    throw error;
+  }
+}
+
+export async function getChatHistory(clerkId: string, sessionId: string) {
+  try {
+    const response = await fetch(`/api/chat?clerkId=${clerkId}&sessionId=${sessionId}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch chat history: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    throw error;
+  }
+}
+
+// Animation APIs
+export async function generateAnimation(clerkId: string, prompt: string, sessionId?: string, model?: string) {
+  try {
+    const defaultModel = 'llama-3.3-70b-versatile';
+    console.log(`Generating animation for prompt: "${prompt}" with model: ${model || defaultModel}`);
+    
+    const response = await fetch('/api/animation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        clerkId,
+        sessionId,
+        prompt,
+        model: model || defaultModel,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Animation API error response:', errorData);
+      throw new Error(`Failed to generate animation: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error generating animation:', error);
+    throw error;
+  }
+}
+
+export async function checkAnimationStatus(videoId: string) {
+  try {
+    const response = await fetch(`/api/animation?videoId=${videoId}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to check animation status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error checking animation status:', error);
     throw error;
   }
 } 

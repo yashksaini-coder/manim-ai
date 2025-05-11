@@ -61,7 +61,6 @@ export default function ChatPageInput({
   prompt = "",
   onSend,
   isDisabled = false,
-  chatId,
   defaultModel = "llama-3.3-70b-versatile",
 }: {
   prompt?: string;
@@ -92,13 +91,16 @@ export default function ChatPageInput({
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
     // "gemma-2-9b-it",
+    "GPT-4o",
+    "GPT-4o-mini",
   ];
 
   const MODEL_ICONS: Record<string, React.ReactNode> = {
     "llama-3.3-70b-versatile": GROQ_SVG,
     "llama-3.1-8b-instant": GROQ_SVG,
     // "gemma-2-9b-it": GROQ_SVG,
-    // "o3-mini": OPENAI_SVG,
+    "GPT-4o": OPENAI_SVG,
+    "GPT-4o-mini": OPENAI_SVG,
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const metadata: Metadata = {
+export const metadata: Metadata = {
   title: "Manim AI",
   description:
     "Create stunning animations with Manim the powerful open-source animation engine.",

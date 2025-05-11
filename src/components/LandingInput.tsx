@@ -133,64 +133,6 @@ export default function LandingInput({prompt, onSend, isDisabled}: {
         }
     };
 
-    const cleaner = (code: string) => {
-        return code.replace(/```python/g, "").replace(/```/g, "");
-    };
-
-    // Direct API implementations to match page.tsx implementation
-    const generateCodeAPI = async (prompt: string, model: string = 'llama-3.3-70b-versatile') => {
-        try {
-            console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/generate/code`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt,
-                    model,
-                }),
-            });
-        
-            if (!response.ok) {
-                throw new Error(`Failed to generate code: ${response.status}`);
-            }
-        
-            const data = await response.json();
-            console.log(data);
-            console.log(cleaner(data.code));
-            return cleaner(data.code);
-        } catch (error) {
-            console.error('Error generating code:', error);
-            throw error;
-        }
-    };
-    
-    const renderAnimationAPI = async (code: string): Promise<string> => {
-        try {
-            console.log(`Connecting to ${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_PROCESSOR}/v1/render/video`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    code: cleaner(code),
-                    file_name: "GenScene.py",
-                    file_class: "GenScene",
-                    iteration: Math.floor(Math.random() * 1000000),
-                    project_name: "GenScene",
-                }),
-            });
-        
-            if (!response.ok) {
-                throw new Error(`Failed to render animation: ${response.status}`);
-            }
-        
-            const data = await response.json();
-            return data.video_url;
-        } catch (error) {
-            console.error('Error rendering animation:', error);
-            throw error;
-        }
-    };
-
     const handleSubmitPrompt = async () => {
         if (!value.trim()) return;
 

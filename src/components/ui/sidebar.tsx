@@ -20,7 +20,6 @@ import {
   UserCog,
   UserSearch,
 } from "lucide-react";
-import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,7 +33,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton"
 
 const sidebarVariants = {
   open: {

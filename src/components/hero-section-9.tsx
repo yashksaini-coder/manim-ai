@@ -1,10 +1,5 @@
 import * as React from "react"
-import { cn } from '@/lib/utils'
-import Link from 'next/link'
-import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 import { HoverPeek } from "./ui/link-preview"
-import { DotPattern } from "@/components/ui/dot-pattern-1"
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
 import AIChatInput from "@/components/LandingInput";
@@ -13,7 +8,6 @@ import { Loader2 } from "lucide-react";
 import { MainFooter } from "@/components/Footer";
 
 export const HeroSection = () => {
-    const { user } = useUser();
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -78,6 +72,19 @@ export const HeroSection = () => {
                             ) : (
                                 <div className="px-40">
                                     <AIChatInput prompt="" onSend={handleSubmitPrompt} />
+                                    <div className="mt-4 text-center text-sm text-stone-400">
+                                        Try: {prompts.map((prompt, i) => (
+                                            <React.Fragment key={i}>
+                                                {i > 0 && ' • '}
+                                                <button 
+                                                    onClick={() => handleSubmitPrompt(prompt)}
+                                                    className="text-stone-300 hover:text-blue-400 transition-colors"
+                                                >
+                                                    {prompt}
+                                                </button>
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>

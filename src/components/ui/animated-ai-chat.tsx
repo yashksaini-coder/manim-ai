@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useTransition } from "react";
+import { useEffect, useRef, useCallback, startTransition } from "react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -108,7 +108,6 @@ Textarea.displayName = "Textarea"
 export function AnimatedAIChat() {
     const [value, setValue] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const [isPending, startTransition] = useTransition();
     const { textareaRef, adjustHeight } = useAutoResizeTextarea({
         minHeight: 60,
         maxHeight: 200,

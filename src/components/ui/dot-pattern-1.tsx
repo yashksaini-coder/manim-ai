@@ -1,3 +1,5 @@
+//@ts-nocheck 
+
 import { useId } from "react";
 
 import { cn } from "@/lib/utils";
