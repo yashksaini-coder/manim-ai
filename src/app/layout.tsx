@@ -36,7 +36,7 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="dark">
             <ConvexClientProvider>
                 <Header />
-              <main className="">{children}</main>
+              <main className="h-[calc(100vh-80px)] overflow-hidden px-3">{children}</main>
             </ConvexClientProvider>
           </ThemeProvider>
         </ClerkProvider>
