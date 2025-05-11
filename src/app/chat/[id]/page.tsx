@@ -37,23 +37,15 @@ enum ProcessingStage {
   Error = "error",
 }
 
-// Define proper page props type
-interface PageProps {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-export default function ChatPage({ params }: PageProps) {
+export default function ChatPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const initialPrompt = searchParams.get("prompt");
   const initialModel = searchParams.get("model") || "llama-3.3-70b-versatile";
-  const paramId = useParams();
   
-  // Extract chat ID from params
-  const chatId = typeof paramId === "object" && paramId.id
-    ? Array.isArray(paramId.id) ? paramId.id[0] : paramId.id
-    : params.id;
+  // Extract chat ID from params using useParams hook directly
+  const chatId = params.id || "new";
 
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
