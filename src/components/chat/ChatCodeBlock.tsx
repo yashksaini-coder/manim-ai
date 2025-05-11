@@ -1,6 +1,5 @@
 "use client";
 
-import { CopyIcon } from "lucide-react";
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { CodeBlock } from "../ui/code-block";

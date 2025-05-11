@@ -11,7 +11,7 @@ import {
     useSpring,
 } from "framer-motion";
 import { cn } from "@/lib/utils";
-
+import Image from "next/image";
 // A little helper hook to figure out the image source, whether it's static or needs fetching from Microlink.
 function usePreviewSource(
     url: string,
@@ -21,6 +21,7 @@ function usePreviewSource(
     isStatic: boolean,
     staticImageSrc?: string
 ) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return useMemo(() => {
         if (isStatic) {
             return staticImageSrc || ""; // Just use the provided static image.
@@ -38,7 +39,7 @@ function usePreviewSource(
             "viewport.height": height * 2.5,
         });
         return `https://api.microlink.io/?${params}`;
-    }, [isStatic, staticImageSrc, url, width, height, quality]); // Recalculate only if these change.
+    }, [isStatic, staticImageSrc, url, width, height]); // Removed quality from dependency array
 }
 
 // This hook handles the hover card's open state and the subtle mouse-following effect for the card itself.
@@ -90,6 +91,11 @@ type HoverPeekProps = {
         | { isStatic?: false; imageSrc?: never }
     );
 
+// Define a proper interface for the element's props
+interface ElementWithClassName {
+    className?: string;
+    onPointerMove?: React.PointerEventHandler<HTMLElement>;
+}
 
 // --- Here's the main component: HoverPeek ---
 // It wraps children with a hover trigger that shows a preview card, optionally with a lens effect.
@@ -166,10 +172,16 @@ export const HoverPeek = ({
     // Prepare the trigger element. We use React.cloneElement to pass down props (like className and mouse handlers)
     // correctly, especially when the child might already have its own className.
     const triggerChild = React.isValidElement(children)
-        ? React.cloneElement(children as React.ReactElement<any>, {
-            className: cn((children.props as any).className, className), // Merge classes nicely.
-            onPointerMove: handlePointerMove, // Attach the card's follow handler.
-        })
+        ? React.cloneElement(
+            children as React.ReactElement<ElementWithClassName>, 
+            {
+                className: cn(
+                    (children as React.ReactElement<ElementWithClassName>).props.className,
+                    className
+                ),
+                onPointerMove: handlePointerMove,
+            }
+          )
         : <span className={className} onPointerMove={handlePointerMove}>{children}</span>; // Fallback if children isn't a valid element.
 
 
@@ -239,7 +251,7 @@ export const HoverPeek = ({
                                         </div>
                                     ) : (
                                         // The base preview image.
-                                        <img
+                                        <Image
                                             src={finalImageSrc}
                                             width={peekWidth}
                                             height={peekHeight}
@@ -281,7 +293,7 @@ export const HoverPeek = ({
                                                     }}
                                                 >
                                                     {/* The magnified image itself - needs the same source and dimensions as the base image. */}
-                                                    <img
+                                                    <Image
                                                         src={finalImageSrc}
                                                         width={peekWidth}
                                                         height={peekHeight}

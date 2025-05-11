@@ -1,4 +1,4 @@
-import { Github, Twitter, Video } from "lucide-react"
+import { Github, Link, Twitter, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface MainFooterProps {
@@ -10,14 +10,14 @@ export const MainFooter = ({ className }: MainFooterProps = {}) => {
     <footer className={cn("pb-6 pt-8 lg:pb-8 lg:pt-12 w-full bg-background", className)}>
       <div className="px-4 lg:px-8 max-w-7xl mx-auto">
         <div className="md:flex md:items-start md:justify-between">
-          <a
+          <Link
             href="/"
             className="flex items-center gap-x-2"
             aria-label="Manim AI"
           >
             <Video className="h-8 w-8 text-white" />
             <span className="font-bold text-xl">Manim AI</span>
-          </a>
+          </Link>
           <ul className="flex list-none mt-6 md:mt-0 space-x-3">
             <li>
               <a

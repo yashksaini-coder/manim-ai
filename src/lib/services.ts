@@ -204,7 +204,11 @@ export async function getVideos(clerkId: string) {
   }
 }
 
-export async function updateVideo(id: string, updateData: any) {
+export async function updateVideo(id: string, updateData: {
+  clerkId: string;
+  videoUrl: string;
+  code: string;
+}) {
   try {
     const response = await fetch('/api/video', {
       method: 'PATCH',
@@ -275,6 +279,9 @@ export async function getChatHistory(clerkId: string, sessionId: string) {
 // Animation APIs
 export async function generateAnimation(clerkId: string, prompt: string, sessionId?: string, model?: string) {
   try {
+    const defaultModel = 'llama-3.3-70b-versatile';
+    console.log(`Generating animation for prompt: "${prompt}" with model: ${model || defaultModel}`);
+    
     const response = await fetch('/api/animation', {
       method: 'POST',
       headers: {
@@ -284,7 +291,7 @@ export async function generateAnimation(clerkId: string, prompt: string, session
         clerkId,
         sessionId,
         prompt,
-        model: model || 'llama-3.3-70b-versatile',
+        model: model || defaultModel,
       }),
     });
 

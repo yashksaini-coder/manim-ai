@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 interface ChatLayoutProps {
   children: ReactNode;
   params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default function ChatLayout({ children, params }: ChatLayoutProps) {

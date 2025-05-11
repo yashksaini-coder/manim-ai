@@ -37,7 +37,13 @@ enum ProcessingStage {
   Error = "error",
 }
 
-export default function ChatPage({ params }: { params: { id: string } }) {
+// Define proper page props type
+interface PageProps {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default function ChatPage({ params }: PageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialPrompt = searchParams.get("prompt");
