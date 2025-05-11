@@ -15,11 +15,10 @@ import { useUser } from "@clerk/nextjs";
 // Import the API client functions
 import {
   createSession,
-  getMessages,
-  createMessage,
-  updateSessionWithVideo,
-  createVideo
-} from "@/lib/api-client";
+  getChatHistory,
+  getChatCompletion,
+  generateAnimation
+} from "@/lib/services";
 
 // Message interface for chat messages
 interface Message {
@@ -43,6 +42,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const initialPrompt = searchParams.get("prompt");
   const initialModel = searchParams.get("model") || "llama-3.3-70b-versatile";
+  const defaultModel = initialModel as string;
   const paramId = useParams();
   
   // Extract chat ID from params
@@ -82,65 +82,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     return code.replace(/```python/g, "").replace(/```/g, "");
   };
 
-  // Generate code via API
-  const generateCode = async (prompt: string, model: string = "llama-3.3-70b-versatile") => {
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SERVER_PROCESSOR;
-      console.log(`Connecting to ${baseUrl}/v1/generate/code`);
-      
-      const response = await fetch(`${baseUrl}/v1/generate/code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          model,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to generate code: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return cleanCode(data.code);
-    } catch (error) {
-      console.error("Error generating code:", error);
-      throw error;
-    }
-  };
-
-  // Render animation via API
-  const renderAnimation = async (code: string): Promise<string> => {
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SERVER_PROCESSOR;
-      console.log(`Connecting to ${baseUrl}/v1/render/video`);
-      
-      const response = await fetch(`${baseUrl}/v1/render/video`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: cleanCode(code),
-          file_name: "GenScene.py",
-          file_class: "GenScene",
-          iteration: Math.floor(Math.random() * 1000000),
-          project_name: "GenScene",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to render animation: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.video_url;
-    } catch (error) {
-      console.error("Error rendering animation:", error);
-      throw error;
-    }
-  };
-
   // Process user message and generate animation
-  const processUserMessage = useCallback(async (prompt: string, model: string = "llama-3.3-70b-versatile") => {
+  const processUserMessage = useCallback(async (prompt: string, model: string = defaultModel) => {
     // Skip if this is a duplicate of the initial request
     if (isInitialRequestSent && initialPrompt === prompt) {
       console.log("Skipping duplicate API call for initial prompt");
@@ -173,89 +116,87 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           }
         }
         
-        // Save the user message to database
+        // Get AI response using Groq
         try {
-          await createMessage(clerkId, currentSessionId, "user", prompt);
-        } catch (messageError) {
-          console.error("Error saving message:", messageError);
+          // Add user message to UI first
+          const userMessage: Message = {
+            id: `user-${Date.now()}`,
+            role: "user",
+            content: prompt,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, userMessage]);
+          
+          // Add placeholder AI message
+          const aiPlaceholderId = `ai-placeholder-${Date.now()}`;
+          const aiPlaceholder: Message = {
+            id: aiPlaceholderId, 
+            role: "ai",
+            content: "Thinking about your animation...",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, aiPlaceholder]);
+          
+          // Get AI response from Groq
+          const chatResponse = await getChatCompletion(clerkId, currentSessionId, prompt);
+          
+          // Update AI message with actual response
+          if (chatResponse && chatResponse.content) {
+            setMessages(prev => {
+              return prev.map(msg => 
+                msg.id === aiPlaceholderId
+                  ? { ...msg, id: `ai-${Date.now()}`, content: chatResponse.content }
+                  : msg
+              );
+            });
+          }
+        } catch (chatError) {
+          console.error("Error getting AI response:", chatError);
         }
       }
       
-      // Step 1: Generate code
-      const generatedCode = await generateCode(prompt, model);
-      if (!generatedCode) {
-        throw new Error("Failed to generate code");
+      // Generate animation (code + render) via backend API
+      setStatus("generating");
+      setProcessingStage(ProcessingStage.GeneratingCode);
+      
+      const animationResponse = await generateAnimation(clerkId!, prompt, currentSessionId, model);
+      
+      if (!animationResponse || !animationResponse.success) {
+        throw new Error(animationResponse?.error || "Failed to generate animation");
       }
       
-      // Update state with generated code
-      setCodeContent(generatedCode);
+      // Update code content when we get it from the API
+      setCodeContent(animationResponse.code);
+      
+      // Update state for rendering phase
+      setProcessingStage(ProcessingStage.RenderingAnimation);
       setStatus("rendering");
       
-      // Update AI message with code generation complete
+      // Add code generation status message if needed
       setMessages(prev => {
-        return prev.map(msg =>
-          msg.role === "ai" && msg.id === prev[prev.length - 1].id
-            ? { ...msg, content: "I've created a Manim animation based on your prompt. Rendering animation..." }
-            : msg
-        );
-      });
-      
-      // Save AI message with confirmation of code generation
-      if (clerkId && isUserLoaded) {
-        await createMessage(
-          clerkId,
-          currentSessionId,
-          "ai",
-          `I've created a Manim animation based on your prompt: "${prompt}". Here's the code.`
-        );
-      }
-      
-      // Step 2: Render animation
-      setProcessingStage(ProcessingStage.RenderingAnimation);
-      const videoUrl = await renderAnimation(generatedCode);
-      
-      // Clean up any pending timeouts
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      
-      // Animation is complete
-      setRenderProgress(100);
-      
-      // Update state with video URL
-      setVideoUrl(videoUrl);
-      setStatus("complete");
-      
-      // Update AI message to show completion
-      setMessages(prev => {
-        return prev.map(msg =>
-          msg.role === "ai" && msg.id === prev[prev.length - 1].id
-            ? { ...msg, content: "Here's your animation!" }
-            : msg
-        );
-      });
-      
-      // Store video in database if signed in
-      if (clerkId && isUserLoaded) {
-        try {
-          const videoData = await createVideo(clerkId, videoUrl, generatedCode);
-          
-          if (videoData && videoData.videoId) {
-            await updateSessionWithVideo(clerkId, currentSessionId, videoData.videoId);
-            await createMessage(
-              clerkId,
-              currentSessionId,
-              "ai",
-              "Your animation is ready!",
-              videoData.videoId
-            );
-          }
-        } catch (error) {
-          console.error("Error storing video:", error);
+        const lastAiMsg = prev.find(msg => msg.role === "ai");
+        if (!lastAiMsg) {
+          // If no AI message exists yet (e.g., when not signed in)
+          return [...prev, {
+            id: `ai-code-${Date.now()}`,
+            role: "ai",
+            content: "I've created a Manim animation based on your prompt. Rendering animation...",
+            timestamp: new Date(),
+          }];
         }
+        return prev;
+      });
+      
+      // Animation is complete once we get the videoUrl
+      if (animationResponse.videoUrl) {
+        setRenderProgress(100);
+        setVideoUrl(animationResponse.videoUrl);
+        setStatus("complete");
+        setProcessingStage(ProcessingStage.Complete);
+      } else {
+        throw new Error("No video URL in response");
       }
       
-      setProcessingStage(ProcessingStage.Complete);
     } catch (error) {
       console.error("Error processing request:", error);
       setError("Failed to generate or render animation. Please try again.");
@@ -264,29 +205,24 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       
       // Update AI message with error
       setMessages(prev => {
-        return prev.map(msg =>
-          msg.role === "ai" && msg.id === prev[prev.length - 1].id
-            ? { ...msg, content: "Something went wrong. Please try again." }
-            : msg
-        );
+        // Find the last AI message
+        const lastAiIndex = prev.map(m => m.role).lastIndexOf("ai");
+        if (lastAiIndex >= 0) {
+          return prev.map((msg, i) => 
+            i === lastAiIndex
+              ? { ...msg, content: "Something went wrong with the animation. Please try again." }
+              : msg
+          );
+        }
+        return prev;
       });
-      
-      // Store error message
-      if (clerkId && isUserLoaded) {
-        await createMessage(
-          clerkId,
-          chatId,
-          "ai",
-          "Error: Failed to generate or render animation. Please try again."
-        );
-      }
     } finally {
       // Mark that initial API call is complete
       if (initialPrompt === prompt) {
         setIsInitialRequestSent(true);
       }
     }
-  }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router]);
+  }, [initialPrompt, isInitialRequestSent, chatId, clerkId, isUserLoaded, router, defaultModel]);
 
   // Load initial prompt from URL
   useEffect(() => {
@@ -313,7 +249,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       } else if (chatId.startsWith("session_") && clerkId && isUserLoaded) {
         // If no prompt in URL but we have a session ID, load existing messages
         try {
-          const messagesData = await getMessages(clerkId, chatId);
+          const messagesData = await getChatHistory(clerkId, chatId);
           if (messagesData && Array.isArray(messagesData) && messagesData.length > 0) {
             // Format messages from API to our Message format
             const formattedMessages = messagesData.map(msg => ({
@@ -402,7 +338,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }, [messages]);
 
   // Send a new message in the chat
-  const handleSendMessage = useCallback(async (message: string, model: string = "llama-3.3-70b-versatile") => {
+  const handleSendMessage = useCallback(async (message: string, model: string = defaultModel) => {
     if (!message.trim()) return;
     
     // 1. Add user message to the UI
@@ -414,25 +350,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     };
     setMessages(prev => [...prev, userMessage]);
     
-    // Save to database if signed in
-    if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
-      try {
-        await createMessage(clerkId, chatId, "user", message);
-      } catch (error) {
-        console.error("Error saving message:", error);
-      }
-    }
-    
-    // 2. Add placeholder AI message
-    const aiMsgId = `ai-${Date.now()}`;
-    const aiMessage: Message = {
-      id: aiMsgId,
-      role: "ai",
-      content: "Generating code for your animation...",
-      timestamp: new Date(),
-    };
-    setMessages(prev => [...prev, aiMessage]);
-    
     // Reset state for new generation
     setCodeContent("");
     setVideoUrl("");
@@ -440,84 +357,106 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     setStatus("generating");
     setProcessingStage(ProcessingStage.GeneratingCode);
 
-    try {
-      // 3. Generate code
-      const code = await generateCode(message, model);
-      setCodeContent(code);
-      setStatus("rendering");
-
-      // Save AI update to database
-      if (clerkId && isUserLoaded) {
-        await createMessage(clerkId, chatId, "ai", "Rendering animation...");
-      }
-
-      // 4. Update AI message to show rendering status
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.role === "ai" && msg.id === aiMsgId
-            ? { ...msg, content: "Rendering animation..." }
-            : msg
-        )
-      );
-
-      // 5. Render animation
-      setProcessingStage(ProcessingStage.RenderingAnimation);
-      const videoUrl = await renderAnimation(code);
-      setVideoUrl(videoUrl);
-      setStatus("complete");
-
-      // Store video in database
-      if (clerkId && isUserLoaded) {
-        try {
-          const videoData = await createVideo(clerkId, videoUrl, code);
-          
-          if (videoData && videoData.videoId) {
-            await updateSessionWithVideo(clerkId, chatId, videoData.videoId);
-          }
-        } catch (error) {
-          console.error("Error storing video:", error);
+    // 2. Get AI response if user is signed in
+    if (clerkId && isUserLoaded && chatId.startsWith("session_")) {
+      try {
+        // Add placeholder AI message
+        const aiPlaceholderId = `ai-placeholder-${Date.now()}`;
+        const aiPlaceholder: Message = {
+          id: aiPlaceholderId,
+          role: "ai",
+          content: "Thinking about your animation...",
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiPlaceholder]);
+        
+        // Get AI response from Groq
+        const chatResponse = await getChatCompletion(clerkId, chatId, message);
+        
+        // Update AI message with actual response
+        if (chatResponse && chatResponse.content) {
+          setMessages(prev => {
+            return prev.map(msg => 
+              msg.id === aiPlaceholderId
+                ? { ...msg, id: `ai-${Date.now()}`, content: chatResponse.content }
+                : msg
+            );
+          });
         }
+      } catch (chatError) {
+        console.error("Error getting AI response:", chatError);
+      }
+    } else {
+      // Add placeholder AI message for non-signed in users
+      const aiMsgId = `ai-${Date.now()}`;
+      const aiMessage: Message = {
+        id: aiMsgId,
+        role: "ai",
+        content: "Generating code for your animation...",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    }
+
+    try {
+      // Generate animation (code + render) via backend API
+      const animationResponse = await generateAnimation(clerkId!, message, chatId, model);
+      
+      if (!animationResponse || !animationResponse.success) {
+        throw new Error(animationResponse?.error || "Failed to generate animation");
+      }
+      
+      // Update code content when we get it from the API
+      setCodeContent(animationResponse.code);
+      
+      // Update state for rendering phase
+      setProcessingStage(ProcessingStage.RenderingAnimation);
+      setStatus("rendering");
+      
+      // Update UI for non-signed-in users
+      if (!clerkId || !isUserLoaded) {
+        setMessages(prev => {
+          const lastAiMsg = prev[prev.length - 1];
+          if (lastAiMsg.role === "ai") {
+            return prev.map(msg => 
+              msg.role === "ai" && msg.id === prev[prev.length - 1].id
+                ? { ...msg, content: "Rendering animation..." }
+                : msg
+            );
+          }
+          return prev;
+        });
       }
 
-      // 6. Update AI message to show completion
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.role === "ai" && msg.id === aiMsgId
-            ? { ...msg, content: "Here's your animation!" }
-            : msg
-        )
-      );
-
-      // Save final message
-      if (clerkId && isUserLoaded) {
-        await createMessage(clerkId, chatId, "ai", "Here's your animation!");
+      // Animation is complete once we get the videoUrl
+      if (animationResponse.videoUrl) {
+        setVideoUrl(animationResponse.videoUrl);
+        setStatus("complete");
+        setProcessingStage(ProcessingStage.Complete);
+      } else {
+        throw new Error("No video URL in response");
       }
-
-      setProcessingStage(ProcessingStage.Complete);
     } catch (err) {
       setError("Failed to generate or render animation.");
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.role === "ai" && msg.id === aiMsgId
-            ? { ...msg, content: "Something went wrong. Please try again." }
-            : msg
-        )
-      );
       
-      // Save error message
-      if (clerkId && isUserLoaded) {
-        await createMessage(
-          clerkId,
-          chatId,
-          "ai",
-          "Error: Failed to generate or render animation. Please try again."
-        );
-      }
+      // Update last AI message with error
+      setMessages(prev => {
+        // Find the last AI message
+        const lastAiIndex = prev.map(m => m.role).lastIndexOf("ai");
+        if (lastAiIndex >= 0) {
+          return prev.map((msg, i) => 
+            i === lastAiIndex
+              ? { ...msg, content: "Something went wrong with the animation. Please try again." }
+              : msg
+          );
+        }
+        return prev;
+      });
       
       setStatus("error");
       setProcessingStage(ProcessingStage.Error);
     }
-  }, [clerkId, isUserLoaded, chatId]);
+  }, [clerkId, isUserLoaded, chatId, defaultModel]);
 
   // Get status message based on current stage
   const getStatusMessage = useCallback(() => {
@@ -539,10 +478,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       const lastUserMessage = messages.filter(m => m.role === "user").pop();
       if (lastUserMessage) {
         setIsInitialRequestSent(false); // Reset flag to allow retry
-        processUserMessage(lastUserMessage.content);
+        processUserMessage(lastUserMessage.content, defaultModel);
       }
     }
-  }, [messages, processUserMessage]);
+  }, [messages, processUserMessage, defaultModel]);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
@@ -648,7 +587,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                     <ChatPageInput
                       prompt=""
                       chatId={chatId}
-                      defaultModel="llama-3.3-70b-versatile"
+                      defaultModel={defaultModel}
                       onSend={handleSendMessage}
                       isDisabled={isProcessing}
                     />
