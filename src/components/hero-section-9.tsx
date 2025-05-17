@@ -6,10 +6,12 @@ import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-van
 import { useState } from "react";
 import { Loader2, Twitter, Github } from "lucide-react";
 import { MainFooter } from "@/components/Footer";
+import { usePrompt } from "@/providers/PromptContext";
 
 export const HeroSection = () => {
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const { setPrompt } = usePrompt();
 
     const prompts = [
         "Create a simple animation of a bouncing ball.",
@@ -23,7 +25,8 @@ export const HeroSection = () => {
         e.preventDefault();
         const value = e.currentTarget.querySelector("input")?.value;
         if (value && value.trim()) {
-            router.push(`/generate?prompt=${encodeURIComponent(value)}`);
+            setPrompt(value);
+            router.push(`/generate`);
         }
     };
 

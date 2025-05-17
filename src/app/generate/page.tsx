@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatCodeBlock } from "@/components/chat/ChatCodeBlock";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@clerk/nextjs";
 import { generateAnimation } from "@/lib/services";
-import { useSearchParams } from "next/navigation";
+import { usePrompt } from "@/providers/PromptContext";
 
 interface Message {
   id: string;
@@ -28,7 +28,7 @@ enum ProcessingStage {
   Error = "error",
 }
 
-export default function MainPage() {
+export default function GeneratePageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [processingStage, setProcessingStage] = useState<ProcessingStage>(ProcessingStage.Idle);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -44,8 +44,7 @@ export default function MainPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
   const clerkId = user?.id;
 
-  const searchParams = useSearchParams();
-  const initialPrompt = searchParams.get("prompt") || "";
+  const { prompt, setPrompt } = usePrompt();
 
   const cleanCode = (code: string) => code.replace(/```python/g, "").replace(/```/g, "");
 
@@ -133,8 +132,9 @@ export default function MainPage() {
   }, [messages, handleSendMessage]);
 
   useEffect(() => {
-    if (initialPrompt) {
-      handleSendMessage(initialPrompt);
+    if (prompt) {
+      handleSendMessage(prompt);
+      setPrompt(""); // Optionally clear after sending
     }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,3 +268,4 @@ export default function MainPage() {
     </div>
   );
 }
+
