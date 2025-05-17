@@ -1,4 +1,3 @@
-import { Github, Link, Twitter, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface MainFooterProps {
@@ -10,14 +9,13 @@ export const MainFooter = ({ className }: MainFooterProps = {}) => {
     <footer className={cn("pb-6 pt-8 lg:pb-8 lg:pt-12 w-full bg-background", className)}>
       <div className="px-4 lg:px-8 max-w-7xl mx-auto">
         <div className="md:flex md:items-start md:justify-between">
-          <Link
+          <a
             href="/"
-            className="flex items-center gap-x-2"
+            className="flex items-center gap-x-2 font-bold text-xl"
             aria-label="Manim AI"
           >
-            <Video className="h-8 w-8 text-white" />
-            <span className="font-bold text-xl">Manim AI</span>
-          </Link>
+            Manim AI
+          </a>
           <ul className="flex list-none mt-6 md:mt-0 space-x-3">
             <li>
               <a
@@ -27,7 +25,7 @@ export const MainFooter = ({ className }: MainFooterProps = {}) => {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-secondary hover:bg-secondary/80 transition"
               >
-                <Twitter className="h-5 w-5" />
+                Twitter
               </a>
             </li>
             <li>
@@ -38,7 +36,7 @@ export const MainFooter = ({ className }: MainFooterProps = {}) => {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-secondary hover:bg-secondary/80 transition"
               >
-                <Github className="h-5 w-5" />
+                GitHub
               </a>
             </li>
           </ul>

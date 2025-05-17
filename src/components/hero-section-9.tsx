@@ -2,29 +2,16 @@ import * as React from "react"
 import { HoverPeek } from "./ui/link-preview"
 import { useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
-import AIChatInput from "@/components/LandingInput";
+import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Twitter, Github } from "lucide-react";
 import { MainFooter } from "@/components/Footer";
+import { usePrompt } from "@/providers/PromptContext";
 
 export const HeroSection = () => {
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
-
-    const handleSubmitPrompt = async (prompt: string) => {
-        if (!prompt.trim()) return;
-
-        try {
-            setIsRedirecting(true);
-            const chatId = uuid();
-    
-            await new Promise(resolve => setTimeout(resolve, 400));
-            router.push(`/chat/${chatId}?prompt=${encodeURIComponent(prompt)}`);
-        } catch (error) {
-            console.error("Error redirecting to chat:", error);
-            setIsRedirecting(false);
-        }
-    };
+    const { setPrompt } = usePrompt();
 
     const prompts = [
         "Create a simple animation of a bouncing ball.",
@@ -33,6 +20,15 @@ export const HeroSection = () => {
         "Linear interpolation between two points.",
         "Linear equation of a line passing through two points.",
     ]
+
+    const handleInputSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const value = e.currentTarget.querySelector("input")?.value;
+        if (value && value.trim()) {
+            setPrompt(value);
+            router.push(`/generate`);
+        }
+    };
 
     return (
         <div className="h-screen flex flex-col">
@@ -71,19 +67,30 @@ export const HeroSection = () => {
                                 </div>
                             ) : (
                                 <div className="px-40">
-                                    <AIChatInput prompt="" onSend={handleSubmitPrompt} />
-                                    <div className="mt-4 text-center text-sm text-stone-400">
-                                        Try: {prompts.map((prompt, i) => (
-                                            <React.Fragment key={i}>
-                                                {i > 0 && ' • '}
-                                                <button 
-                                                    onClick={() => handleSubmitPrompt(prompt)}
-                                                    className="text-stone-300 hover:text-blue-400 transition-colors"
-                                                >
-                                                    {prompt}
-                                                </button>
-                                            </React.Fragment>
-                                        ))}
+                                    <PlaceholdersAndVanishInput
+                                        placeholders={prompts}
+                                        onChange={() => {}}
+                                        onSubmit={handleInputSubmit}
+                                    />
+                                    <div className="flex justify-center gap-4 mt-6">
+                                        <a
+                                            href="https://x/yash_k_saini"
+                                            target="_blank"
+                                            aria-label="Twitter"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center h-10 px-6 rounded-full bg-secondary hover:bg-secondary/80 transition font-medium text-base gap-2"
+                                        >
+                                            <Twitter className="w-5 h-5" />
+                                        </a>
+                                        <a
+                                            href="https://github.com/yashksaini-coder"
+                                            target="_blank"
+                                            aria-label="GitHub"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center h-10 px-6 rounded-full bg-secondary hover:bg-secondary/80 transition font-medium text-base gap-2"
+                                        >
+                                            <Github className="w-5 h-5" />
+                                        </a>
                                     </div>
                                 </div>
                             )}
@@ -91,9 +98,9 @@ export const HeroSection = () => {
                     </div>
                 </section>
             </main>
-            <footer className="mt-auto">
+            {/* <footer className="mt-auto">
                 <MainFooter />
-            </footer>
+            </footer> */}
         </div>
     )
 }

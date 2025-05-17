@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import ConvexClientProvider from "@/providers/ClerkConvexProvider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PromptProvider } from "@/providers/PromptContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,8 +36,10 @@ export default function RootLayout({
         <ClerkProvider>
           <ThemeProvider attribute="class" defaultTheme="dark">
             <ConvexClientProvider>
+              <PromptProvider>
                 <Header />
-              <main className="h-[calc(100vh-80px)] overflow-hidden px-3">{children}</main>
+                <main className="h-[calc(100vh-80px)] overflow-hidden px-3">{children}</main>
+              </PromptProvider>
             </ConvexClientProvider>
           </ThemeProvider>
         </ClerkProvider>
