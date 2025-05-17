@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatCodeBlock } from "@/components/chat/ChatCodeBlock";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@clerk/nextjs";
 import { generateAnimation } from "@/lib/services";
+import { useSearchParams } from "next/navigation";
 
 interface Message {
   id: string;
@@ -42,6 +43,9 @@ export default function MainPage() {
 
   const { user, isLoaded: isUserLoaded } = useUser();
   const clerkId = user?.id;
+
+  const searchParams = useSearchParams();
+  const initialPrompt = searchParams.get("prompt") || "";
 
   const cleanCode = (code: string) => code.replace(/```python/g, "").replace(/```/g, "");
 
@@ -127,6 +131,14 @@ export default function MainPage() {
       }
     }
   }, [messages, handleSendMessage]);
+
+  useEffect(() => {
+    if (initialPrompt) {
+      handleSendMessage(initialPrompt);
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">

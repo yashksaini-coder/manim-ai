@@ -23,7 +23,7 @@ export const HeroSection = () => {
         e.preventDefault();
         const value = e.currentTarget.querySelector("input")?.value;
         if (value && value.trim()) {
-            router.push(`/?prompt=${encodeURIComponent(value)}`);
+            router.push(`/generate?prompt=${encodeURIComponent(value)}`);
         }
     };
 
@@ -95,9 +95,9 @@ export const HeroSection = () => {
                     </div>
                 </section>
             </main>
-            <footer className="mt-auto">
+            {/* <footer className="mt-auto">
                 <MainFooter />
-            </footer>
+            </footer> */}
         </div>
     )
 }
