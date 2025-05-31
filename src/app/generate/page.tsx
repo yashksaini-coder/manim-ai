@@ -46,8 +46,6 @@ export default function GeneratePageContent() {
 
   const { prompt, setPrompt } = usePrompt();
 
-  const cleanCode = (code: string) => code.replace(/```python/g, "").replace(/```/g, "");
-
   const handleSendMessage = useCallback(async (prompt: string, model: string = "llama-3.3-70b-versatile") => {
     if (!prompt.trim()) return;
     setIsProcessing(true);
@@ -131,14 +129,6 @@ export default function GeneratePageContent() {
     }
   }, [messages, handleSendMessage]);
 
-  useEffect(() => {
-    if (prompt) {
-      handleSendMessage(prompt);
-      setPrompt(""); // Optionally clear after sending
-    }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="flex flex-col h-full rounded-2xl">
